@@ -118,3 +118,13 @@ async function sendText(psid, text) {
 }
 
 app.listen(3000, () => console.log("Cream Bot running on port 3000"));
+// --- health check route (for UptimeRobot/Render) ---
+app.get("/health", (req, res) => {
+ res.status(200).send("OK");
+});
+
+// --- start server ---
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+ console.log(`✅ Cream Bot running on port ${PORT}`);
+});
