@@ -118,15 +118,3 @@ async function sendText(psid, text) {
 }
 
 app.listen(3000, () => console.log("Cream Bot running on port 3000"));
-// --- existing routes above ---
-// Messenger webhook handler etc...
-
-// --- health check route (for UptimeRobot) ---
-app.get("/health", (req, res) => {
- res.status(200).send("OK");
-});
-
-// --- start server ---
-app.listen(PORT || 3000, () => {
- console.log(`✅ Cream Bot running on port ${PORT || 3000}`);
-});
