@@ -1,4 +1,4 @@
-import express from "express";
+mport express from "express";
 import fetch from "node-fetch";
 import fs from "fs";
 import path from "path";
@@ -6,12 +6,16 @@ import path from "path";
 const app = express();
 app.use(express.json());
 
-// ENV
-const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
-const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+// ===== ENV =====
+const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;              // Messenger
+const VERIFY_TOKEN      = process.env.VERIFY_TOKEN;                   // Used by both webhooks
+const OPENAI_API_KEY    = process.env.OPENAI_API_KEY;
 
-// Load brand voice at startup (fallback to a safe default)
+// WhatsApp Cloud API
+const WHATSAPP_ACCESS_TOKEN   = process.env.WHATSAPP_ACCESS_TOKEN;    // Bearer token from API Setup
+const WHATSAPP_PHONE_NUMBER_ID= process.env.WHATSAPP_PHONE_NUMBER_ID; // digits-only ID
+
+// ===== Load brand voice at startup (fallback safe) =====
 let SYSTEM_PROMPT = "You are Cream Bot, a concise, friendly AI assistant. Keep replies brief (2–4 sentences).";
 try {
  const p = path.join(process.cwd(), "prompt.md");
@@ -21,45 +25,72 @@ try {
  console.warn("! Could not load prompt.md, using default system prompt.");
 }
 
-// --- Webhook verification (Facebook setup step) ---
+// ===== Webhook verification (Facebook & WhatsApp) =====
 app.get("/webhook", (req, res) => {
  const mode = req.query["hub.mode"];
  const token = req.query["hub.verify_token"];
  const challenge = req.query["hub.challenge"];
 
  if (mode === "subscribe" && token === VERIFY_TOKEN) {
-   console.log("✓ Webhook verified with Facebook");
+   console.log("✓ Webhook verified");
    return res.status(200).send(challenge);
  }
  console.log("✗ Webhook verification failed");
  return res.sendStatus(403);
 });
 
-// --- Receive messages from Messenger ---
+// ===== Receive messages (Messenger & WhatsApp share the same POST) =====
 app.post("/webhook", async (req, res) => {
  try {
    const body = req.body;
 
+   // ----- Messenger: body.object === "page"
    if (body.object === "page") {
      for (const entry of body.entry) {
        const event = entry.messaging?.[0];
-       if (event?.message?.text) {
-         const senderId = event.sender.id;
-         const userMessage = event.message.text?.trim() || "";
+       const userMessage = event?.message?.text?.trim();
+       const senderId = event?.sender?.id;
+       if (!userMessage || !senderId) continue;
 
-         // Simple reset command (optional)
-         if (/^reset$/i.test(userMessage)) {
-           await sendText(senderId, "Reset ✅ How can I help today?");
-           continue;
-         }
-
-         const reply = await callOpenAI(userMessage);
-         await sendText(senderId, reply);
+       if (/^reset$/i.test(userMessage)) {
+         await sendMessengerText(senderId, "Reset ✅ How can I help today?");
+         continue;
        }
+       const reply = await callOpenAI(userMessage);
+       await sendMessengerText(senderId, reply);
      }
      return res.sendStatus(200);
    }
 
+   // ----- WhatsApp Cloud API: body.object === "whatsapp_business_account"
+   if (body.object === "whatsapp_business_account") {
+     for (const entry of body.entry ?? []) {
+       for (const change of entry.changes ?? []) {
+         const value = change.value || {};
+         const messages = value.messages || [];
+         for (const msg of messages) {
+           // only respond to text messages
+           if (msg.type !== "text") continue;
+
+           const from = msg.from;                    // user's phone (E.164 without +)
+           const userMessage = msg.text?.body?.trim();
+           if (!from || !userMessage) continue;
+
+           if (/^reset$/i.test(userMessage)) {
+             await sendWhatsAppText(from, "Reset ✅ How can I help today?");
+             continue;
+           }
+
+           const reply = await callOpenAI(userMessage);
+           await sendWhatsAppText(from, reply);
+         }
+       }
+     }
+     // WhatsApp requires a fast 200
+     return res.sendStatus(200);
+   }
+
+   // Unknown payload
    return res.sendStatus(404);
  } catch (e) {
    console.error("Webhook error:", e);
@@ -67,24 +98,24 @@ app.post("/webhook", async (req, res) => {
  }
 });
 
-// --- Helpers ---
+// ===== OpenAI helper =====
 async function callOpenAI(userMessage) {
  try {
    const r = await fetch("https://api.openai.com/v1/chat/completions", {
      method: "POST",
      headers: {
        "Content-Type": "application/json",
-       Authorization: `Bearer ${OPENAI_API_KEY}`
+       Authorization: `Bearer ${OPENAI_API_KEY}`,
      },
      body: JSON.stringify({
-       model: "gpt-3.5-turbo",              // leave as-is for now (cheap & fast)
+       model: "gpt-3.5-turbo",
        temperature: 0.6,
-       max_tokens: 300,                     // keep answers snappy for Messenger
+       max_tokens: 300,
        messages: [
          { role: "system", content: SYSTEM_PROMPT },
-         { role: "user", content: userMessage }
-       ]
-     })
+         { role: "user", content: userMessage },
+       ],
+     }),
    });
 
    const data = await r.json();
@@ -98,33 +129,39 @@ async function callOpenAI(userMessage) {
  }
 }
 
-async function sendText(psid, text) {
- // Messenger send API
- const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`;
- const payload = {
-   recipient: { id: psid },
-   message: { text }
- };
+// ===== Senders =====
+async function sendMessengerText(psid, text) {
+ const url = `https://graph.facebook.com/v20.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`;
+ const payload = { recipient: { id: psid }, message: { text } };
  const r = await fetch(url, {
    method: "POST",
    headers: { "Content-Type": "application/json" },
-   body: JSON.stringify(payload)
+   body: JSON.stringify(payload),
  });
-
- const j = await r.json();
- if (!r.ok) {
-   console.error("Send API error:", j);
- }
+ if (!r.ok) console.error("Messenger Send API error:", await r.text());
 }
 
-app.listen(3000, () => console.log("Cream Bot running on port 3000"));
-// --- health check route (for UptimeRobot/Render) ---
-app.get("/health", (req, res) => {
- res.status(200).send("OK");
-});
+async function sendWhatsAppText(to, text) {
+ // to = phone number string without '+'
+ const url = `https://graph.facebook.com/v20.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`;
+ const payload = {
+   messaging_product: "whatsapp",
+   to,
+   text: { body: text },
+ };
+ const r = await fetch(url, {
+   method: "POST",
+   headers: {
+     "Content-Type": "application/json",
+     Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+   },
+   body: JSON.stringify(payload),
+ });
+ if (!r.ok) console.error("WhatsApp Send error:", await r.text());
+}
 
-// --- start server ---
+// ===== Health check & server =====
+app.get("/health", (_req, res) => res.status(200).send("OK"));
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
- console.log(`✅ Cream Bot running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`✅ Cream Bot running on port ${PORT}`));
+
