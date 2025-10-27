@@ -6,22 +6,23 @@ import path from "path";
 const app = express();
 app.use(express.json());
 
-app.use(express.json());
-
-// Temporary Instagram auth route
-app.get('/auth', (req, res) => {
- console.log('Instagram OAuth callback hit!');
- res.send('✅ Instagram login successful — you can close this tab.');
+// --- Temporary Instagram auth route (for OAuth redirect success page) ---
+app.get("/auth", (_req, res) => {
+ console.log("Instagram OAuth callback hit!");
+ res.send("✅ Instagram login successful — you can close this tab.");
 });
 
 // ===== ENV =====
-const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;              // Messenger
-const VERIFY_TOKEN      = process.env.VERIFY_TOKEN;                   // Used by both webhooks
-const OPENAI_API_KEY    = process.env.OPENAI_API_KEY;
+const PAGE_ACCESS_TOKEN       = process.env.PAGE_ACCESS_TOKEN;         // Messenger Page token
+const VERIFY_TOKEN            = process.env.VERIFY_TOKEN;              // Webhook verify (all products)
+const OPENAI_API_KEY          = process.env.OPENAI_API_KEY;
 
 // WhatsApp Cloud API
-const WHATSAPP_ACCESS_TOKEN   = process.env.WHATSAPP_ACCESS_TOKEN;    // Bearer token from API Setup
-const WHATSAPP_PHONE_NUMBER_ID= process.env.WHATSAPP_PHONE_NUMBER_ID; // digits-only ID
+const WHATSAPP_ACCESS_TOKEN   = process.env.WHATSAPP_ACCESS_TOKEN;     // Bearer token
+const WHATSAPP_PHONE_NUMBER_ID= process.env.WHATSAPP_PHONE_NUMBER_ID;  // digits-only ID
+
+// Instagram Messaging
+const INSTAGRAM_ACCESS_TOKEN  = process.env.INSTAGRAM_ACCESS_TOKEN;    // long-lived IG token (60-day, refreshable)
 
 // ===== Load brand voice at startup (fallback safe) =====
 let SYSTEM_PROMPT = "You are Cream Bot, a concise, friendly AI assistant. Keep replies brief (2–4 sentences).";
@@ -33,7 +34,7 @@ try {
  console.warn("! Could not load prompt.md, using default system prompt.");
 }
 
-// ===== Webhook verification (Facebook & WhatsApp) =====
+// ===== Webhook verification (Facebook / IG / WhatsApp) =====
 app.get("/webhook", (req, res) => {
  const mode = req.query["hub.mode"];
  const token = req.query["hub.verify_token"];
@@ -47,14 +48,14 @@ app.get("/webhook", (req, res) => {
  return res.sendStatus(403);
 });
 
-// ===== Receive messages (Messenger & WhatsApp share the same POST) =====
+// ===== Receive messages (Messenger, Instagram, WhatsApp share this POST) =====
 app.post("/webhook", async (req, res) => {
  try {
    const body = req.body;
 
    // ----- Messenger: body.object === "page"
    if (body.object === "page") {
-     for (const entry of body.entry) {
+     for (const entry of body.entry || []) {
        const event = entry.messaging?.[0];
        const userMessage = event?.message?.text?.trim();
        const senderId = event?.sender?.id;
@@ -70,6 +71,43 @@ app.post("/webhook", async (req, res) => {
      return res.sendStatus(200);
    }
 
+   // ----- Instagram: body.object === "instagram"
+   // IG payloads arrive under entry[].changes[].value.{message/text/messages[]}
+   if (body.object === "instagram") {
+     for (const entry of body.entry || []) {
+       for (const change of entry.changes || []) {
+         const v = change.value || {};
+
+         // Two common shapes:
+         // 1) Single message fields:
+         //    v.from.id, v.message (or v.text), v.id, v.timestamp
+         // 2) Array:
+         //    v.messages = [{ from: { id }, text: { body } }]
+         const igSender =
+           v.from?.id ||
+           v.messages?.[0]?.from?.id;
+
+         const igText =
+           (typeof v.message === "string" && v.message) ||
+           (typeof v.text === "string" && v.text) ||
+           v.messages?.[0]?.text?.body ||
+           v.text?.body ||
+           null;
+
+         if (!igSender || !igText) continue;
+
+         if (/^reset$/i.test(igText)) {
+           await sendInstagramText(igSender, "Reset ✅ How can I help today?");
+           continue;
+         }
+
+         const reply = await callOpenAI(igText);
+         await sendInstagramText(igSender, reply);
+       }
+     }
+     return res.sendStatus(200);
+   }
+
    // ----- WhatsApp Cloud API: body.object === "whatsapp_business_account"
    if (body.object === "whatsapp_business_account") {
      for (const entry of body.entry ?? []) {
@@ -80,7 +118,7 @@ app.post("/webhook", async (req, res) => {
            // only respond to text messages
            if (msg.type !== "text") continue;
 
-           const from = msg.from;                    // user's phone (E.164 without +)
+           const from = msg.from;                     // user's phone (E.164 without +)
            const userMessage = msg.text?.body?.trim();
            if (!from || !userMessage) continue;
 
@@ -149,6 +187,18 @@ async function sendMessengerText(psid, text) {
  if (!r.ok) console.error("Messenger Send API error:", await r.text());
 }
 
+async function sendInstagramText(igUserId, text) {
+ // IG uses the same Send API path with a token that has instagram_* + pages_* perms.
+ const url = `https://graph.facebook.com/v20.0/me/messages?access_token=${INSTAGRAM_ACCESS_TOKEN}`;
+ const payload = { recipient: { id: igUserId }, message: { text } };
+ const r = await fetch(url, {
+   method: "POST",
+   headers: { "Content-Type": "application/json" },
+   body: JSON.stringify(payload),
+ });
+ if (!r.ok) console.error("Instagram Send API error:", await r.text());
+}
+
 async function sendWhatsAppText(to, text) {
  // to = phone number string without '+'
  const url = `https://graph.facebook.com/v20.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`;
@@ -172,4 +222,3 @@ async function sendWhatsAppText(to, text) {
 app.get("/health", (_req, res) => res.status(200).send("OK"));
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`✅ Cream Bot running on port ${PORT}`));
-
