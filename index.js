@@ -75,25 +75,32 @@ app.post("/webhook", async (req, res) => {
    // ----- Instagram: body.object === "instagram"
    // Using Messenger-style payload for Instagram Messaging
    if (body.object === "instagram") {
-     for (const entry of body.entry || []) {
-       for (const event of entry.messaging || []) {
-         const senderId = event.sender?.id;
-         const text = event.message?.text?.trim();
-         if (!senderId || !text) continue;
+ for (const entry of body.entry || []) {
+   for (const event of entry.messaging || []) {
+     const senderId = event.sender?.id;
+     const text = event.message?.text?.trim();
 
-         console.log("📩 IG message:", text);
-
-         if (/^reset$/i.test(text)) {
-           await sendInstagramText(senderId, "Reset ✅ How can I help today?");
-           continue;
-         }
-
-         const reply = await callOpenAI(text);
-         await sendInstagramText(senderId, reply);
-       }
+     // Ignore echo messages (when the bot sees its own replies)
+     if (event.message?.is_echo) {
+       console.log("Ignoring echo event from IG");
+       continue;
      }
-     return res.sendStatus(200);
+
+     if (!senderId || !text) continue;
+
+     console.log("📩 IG message:", text);
+
+     if (/^reset$/i.test(text)) {
+       await sendInstagramText(senderId, "Reset ✅ How can I help today?");
+       continue;
+     }
+
+     const reply = await callOpenAI(text);
+     await sendInstagramText(senderId, reply);
    }
+ }
+ return res.sendStatus(200);
+}
 
    // ----- WhatsApp Cloud API: body.object === "whatsapp_business_account"
    if (body.object === "whatsapp_business_account") {
