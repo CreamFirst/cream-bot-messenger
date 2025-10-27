@@ -6,6 +6,14 @@ import path from "path";
 const app = express();
 app.use(express.json());
 
+app.use(express.json());
+
+// Temporary Instagram auth route
+app.get('/auth', (req, res) => {
+ console.log('Instagram OAuth callback hit!');
+ res.send('✅ Instagram login successful — you can close this tab.');
+});
+
 // ===== ENV =====
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;              // Messenger
 const VERIFY_TOKEN      = process.env.VERIFY_TOKEN;                   // Used by both webhooks
