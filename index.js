@@ -175,7 +175,10 @@ async function sendMessengerText(psid, text) {
 }
 
 async function sendInstagramText(igUserId, text) {
- // For IG DMs, send via Messenger Send API with the Page token
+ // Stop Instagram from generating ugly preview cards
+ text = text.replace(/https:\/\//g, "https://\u200B");
+
+ // IG uses the same Send API path with a token that has instagram_* + pages_* perms.
  const url = `https://graph.facebook.com/v20.0/me/messages?access_token=${INSTAGRAM_PAGE_TOKEN}`;
  const payload = { recipient: { id: igUserId }, message: { text } };
  const r = await fetch(url, {
