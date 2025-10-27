@@ -175,7 +175,7 @@ async function sendMessengerText(psid, text) {
 
 async function sendInstagramText(igUserId, text) {
  // For IG DMs, send via Messenger Send API with the Page token
- const url = `https://graph.facebook.com/v20.0/me/messages?access_token=${INSTAGRAM_ACCESS_TOKEN}`;
+ const url = `https://graph.facebook.com/v20.0/me/messages?access_token=${INSTAGRAM_PAGE_TOKEN}`;
  const payload = { recipient: { id: igUserId }, message: { text } };
  const r = await fetch(url, {
    method: "POST",
