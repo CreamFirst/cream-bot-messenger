@@ -23,6 +23,7 @@ const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;  // digit
 
 // Instagram (token kept if you later need IG Graph; not used for DM send)
 const INSTAGRAM_ACCESS_TOKEN   = process.env.INSTAGRAM_ACCESS_TOKEN;
+const INSTAGRAM_PAGE_TOKEN   = process.env.INSTAGRAM_PAGE_TOKEN;
 
 // ===== Load brand voice at startup (fallback safe) =====
 let SYSTEM_PROMPT = "You are Cream Bot, a concise, friendly AI assistant. Keep replies brief (2–4 sentences).";
