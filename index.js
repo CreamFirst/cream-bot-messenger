@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 
 const app = express();
+app.use(express.static('public')); //
 app.use(express.json());
 
 // --- Temporary Instagram auth route (OAuth redirect success page) ---
