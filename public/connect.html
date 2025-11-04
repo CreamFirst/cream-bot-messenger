@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset="UTF-8">
+ <title>Connect to Cream First AI</title>
+ <style>
+   body {
+     font-family: Arial, sans-serif;
+     text-align: center;
+     padding: 60px;
+     color: #222;
+   }
+   button {
+     background-color: #1877F2;
+     color: white;
+     font-size: 18px;
+     padding: 12px 24px;
+     border: none;
+     border-radius: 8px;
+     cursor: pointer;
+   }
+ </style>
+</head>
+<body>
+ <h1>Connect your Facebook & Instagram</h1>
+ <p>Click below to authorise Cream First AI to manage your business messages.</p>
+
+ <button onclick="connectFacebook()">Connect with Facebook</button>
+
+ <script>
+   function connectFacebook() {
+     const appId = 'YOUR_APP_ID';
+     const redirect = 'https://www.facebook.com/connect/login_success.html';
+     const scopes = [
+       'pages_show_list',
+       'pages_manage_metadata',
+       'pages_messaging',
+       'instagram_basic',
+       'instagram_manage_messages',
+       'instagram_business_basic'
+     ];
+     const url = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirect)}&scope=${scopes.join(',')}`;
+     window.location.href = url;
+   }
+ </script>
+</body>
+</html>
