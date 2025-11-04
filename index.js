@@ -7,10 +7,34 @@ const app = express();
 app.use(express.static('public')); //
 app.use(express.json());
 
-// --- Temporary Instagram auth route (OAuth redirect success page) ---
-app.get("/auth", (_req, res) => {
- console.log("Instagram OAuth callback hit!");
- res.send("✅ Instagram login successful — you can close this tab.");
+// --- Instagram OAuth callback (exchanges code for access token) ---
+app.get("/auth", async (req, res) => {
+ const code = req.query.code;
+ console.log("➡️ Instagram OAuth callback hit!");
+ console.log("Received code:", code);
+
+ if (!code) {
+   return res.status(400).send("Missing OAuth code");
+ }
+
+ const params = new URLSearchParams({
+   client_id: "1114345447122158", // your App ID
+   client_secret: process.env.FB_APP_SECRET, // add in Render env vars
+   redirect_uri: "https://cream-bot-messenger.onrender.com/auth",
+   code: code
+ });
+
+ try {
+   const response = await fetch(
+     `https://graph.facebook.com/v18.0/oauth/access_token?${params}`
+   );
+   const data = await response.json();
+   console.log("✅ Access Token Response:", data);
+   res.send("✅ Access token received! Check Render logs for details.");
+ } catch (err) {
+   console.error("❌ Token exchange failed:", err);
+   res.status(500).send("Token exchange failed");
+ }
 });
 
 // ===== ENV =====
