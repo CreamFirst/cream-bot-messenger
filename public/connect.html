@@ -25,12 +25,12 @@
  <h1>Connect your Facebook & Instagram</h1>
  <p>Click below to authorise Cream First AI to manage your business messages.</p>
 
- <button onclick="connectFacebook()">Connect with Facebook</button>
+ <button id="fbBtn">Connect with Facebook</button>
 
  <script>
-   function connectFacebook() {
-     const appId = '1114345447122158';
-     const redirect = 'https://www.facebook.com/connect/login_success.html';
+   (function () {
+     const appId = '111435447122158'; // your numeric App ID
+     const redirect = 'https://cream-bot-messenger.onrender.com/auth'; // MUST match Meta > Facebook Login > Valid OAuth Redirect URIs
      const scopes = [
        'pages_show_list',
        'pages_manage_metadata',
@@ -39,8 +39,18 @@
        'instagram_manage_messages',
        'instagram_business_basic'
      ];
-     const url = `https://cream-bot-messenger.onrender.com/auth';
-   }
+
+     document.getElementById('fbBtn').addEventListener('click', function () {
+       const url = 'https://www.facebook.com/v18.0/dialog/oauth'
+         + `?client_id=${encodeURIComponent(appId)}`
+         + `&redirect_uri=${encodeURIComponent(redirect)}`
+         + `&response_type=code`
+         + `&scope=${encodeURIComponent(scopes.join(','))}`
+         + `&auth_type=rerequest`; // always show the permission dialog
+
+       window.location.href = url; // <-- actually navigate to Facebook
+     });
+   })();
  </script>
 </body>
 </html>
