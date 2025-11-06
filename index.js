@@ -277,12 +277,16 @@ app.get("/ig-basic-ui", async (_req, res) => {
      .join("");
 
    res.send(`
-     <html><body style="font-family:Arial,Helvetica,sans-serif;padding:24px;line-height:1.4">
+     <html>
+     <body style="font-family:Arial,Helvetica,sans-serif;padding:24px;line-height:1.4">
        <h2>Meta Review Demo – Instagram Basic Data</h2>
-       <p><b>Username:</b> ${profile.username} &nbsp; | &nbsp; <b>Type:</b> ${profile.account_type} &nbsp; | &nbsp; <b>Media count:</b> ${profile.media_count}</p>
+       <p><b>Username:</b> ${profile.username} &nbsp; | &nbsp; 
+          <b>Type:</b> ${profile.account_type} &nbsp; | &nbsp; 
+          <b>Media count:</b> ${profile.media_count}</p>
        <h3>Recent Media</h3>
-       ${cards || "<i>No media found.</i>"}
-     </body></html>
+       ${cards || "<p>No media found.</p>"}
+     </body>
+     </html>
    `);
  } catch (err) {
    console.error("Error fetching IG basic data:", err);
