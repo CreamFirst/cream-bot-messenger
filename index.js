@@ -258,12 +258,6 @@ app.get('/ig-basic', async (req, res) => {
  }
 });
 
-// existing server start code ↓
-app.listen(process.env.PORT || 3000, () => {
- console.log("Server running");
-});
-
-
 // ===== Health check & server =====
 app.get("/health", (_req, res) => res.status(200).send("OK"));
 const PORT = process.env.PORT || 3000;
