@@ -240,6 +240,30 @@ async function sendWhatsAppText(to, text) {
  if (!r.ok) console.error("WhatsApp Send error:", await r.text());
 }
 
+// --- Instagram Basic test route --- //
+app.get('/ig-basic', async (req, res) => {
+ try {
+   const token = process.env.INSTAGRAM_ACCESS_TOKEN;
+
+   // Get basic profile info from Instagram Graph API
+   const response = await fetch(
+     `https://graph.instagram.com/me?fields=id,username,account_type,media_count&access_token=${token}`
+   );
+
+   const data = await response.json();
+   res.json(data);
+ } catch (err) {
+   console.error('Error fetching IG basic info:', err);
+   res.status(500).send('Error retrieving IG basic info');
+ }
+});
+
+// existing server start code ↓
+app.listen(process.env.PORT || 3000, () => {
+ console.log("Server running");
+});
+
+
 // ===== Health check & server =====
 app.get("/health", (_req, res) => res.status(200).send("OK"));
 const PORT = process.env.PORT || 3000;
