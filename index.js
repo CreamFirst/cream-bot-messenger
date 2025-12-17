@@ -42,6 +42,7 @@ app.get("/auth", async (req, res) => {
 
 // ===== ENV =====
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
+const PAGE_TOKEN_TANSEA = process.env.PAGE_TOKEN_TANSEA;
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const WHATSAPP_ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
