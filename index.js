@@ -50,6 +50,15 @@ const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
 const INSTAGRAM_ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN;
 const INSTAGRAM_PAGE_TOKEN = process.env.INSTAGRAM_PAGE_TOKEN;
 
+function getMessengerToken(pageId) {
+ if (pageId === "760257793839940") return PAGE_ACCESS_TOKEN; // Cream
+ if (pageId === "191735510682679") return PAGE_TOKEN_TANSEA; // Tansea
+
+ throw new Error(`No token for pageId ${pageId}`);
+}
+
+
+
 // ===== Load brand voice at startup =====
 let SYSTEM_PROMPT =
  "You are Cream Bot, a concise, friendly AI assistant. Keep replies brief (2–4 sentences).";
@@ -193,7 +202,8 @@ async function callOpenAI(userMessage) {
 
 // ===== Senders =====
 async function sendMessengerText(psid, text) {
- const url = `https://graph.facebook.com/v20.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`;
+ const token = getMessengerToken(pageId);
+const url = `https://graph.facebook.com/v20.0/me/messages?access_token=${token}`;
  const payload = { recipient: { id: psid }, message: { text } };
  const r = await fetch(url, {
    method: "POST",
