@@ -204,6 +204,7 @@ async function callOpenAI(userMessage) {
 // ===== Senders =====
 async function sendMessengerText(pageId, psid, text) {
  const token = getMessengerToken(pageId);
+ if (!token) return;
 const url = `https://graph.facebook.com/v20.0/me/messages?access_token=${token}`;
  const payload = { recipient: { id: psid }, message: { text } };
  const r = await fetch(url, {
