@@ -54,7 +54,8 @@ function getMessengerToken(pageId) {
  if (pageId === "760257793839940") return PAGE_ACCESS_TOKEN; // Cream
  if (pageId === "191735510682679") return PAGE_TOKEN_TANSEA; // Tansea
 
- throw new Error(`No token for pageId ${pageId}`);
+ console.warn("No token for pageId:", pageId);
+ return null;
 }
 
 
@@ -201,7 +202,7 @@ async function callOpenAI(userMessage) {
 }
 
 // ===== Senders =====
-async function sendMessengerText(psid, text) {
+async function sendMessengerText(pageId, psid, text) {
  const token = getMessengerToken(pageId);
 const url = `https://graph.facebook.com/v20.0/me/messages?access_token=${token}`;
  const payload = { recipient: { id: psid }, message: { text } };
