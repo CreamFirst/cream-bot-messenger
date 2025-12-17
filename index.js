@@ -82,6 +82,7 @@ app.post("/webhook", async (req, res) => {
    // ----- Messenger -----
    if (body.object === "page") {
      for (const entry of body.entry || []) {
+       console.log("📘 Incoming Messenger pageId:", entry.id);
        const event = entry.messaging?.[0];
        const userMessage = event?.message?.text?.trim();
        const senderId = event?.sender?.id;
