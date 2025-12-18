@@ -36,55 +36,104 @@ try {
 }
 
 // =====================================================
-// === ADDED FOR TANSEA TYPEBOT =========================
+// === TANSEA TYPEBOT (Messenger) =======================
 // =====================================================
 
 // Store Messenger → Typebot sessions
 const typebotSessions = new Map();
 
-// Tansea Typebot Run API
-const TANSEA_TYPEBOT_RUN_URL =
- "https://typebot.io/api/v1/typebots/my-typebot-7hozval";
+// ✅ MUST include /startChat (per your Typebot API modal)
+const TANSEA_TYPEBOT_START_URL =
+ "https://typebot.io/api/v1/typebots/my-typebot-7hozval/startChat";
+
+function safeExtractTypebotReply(data) {
+ // Be defensive: Typebot payloads can vary by version/config.
+ // Try common shapes:
+ // - { messages: [{ type:"text", content:"..." }] }
+ // - { messages: [{ type:"text", content: { text: "..." } }] }
+ // - { messages: [{ type:"text", text: "..." }] }
+ const msgs = Array.isArray(data?.messages) ? data.messages : [];
+ const texts = msgs
+   .filter((m) => m && m.type === "text")
+   .map((m) => {
+     if (typeof m.content === "string") return m.content;
+     if (typeof m.text === "string") return m.text;
+     if (typeof m.content?.text === "string") return m.content.text;
+     return "";
+   })
+   .filter(Boolean);
+
+ return texts.join("\n").trim();
+}
+
+async function fetchJsonOrText(url, options) {
+ const r = await fetch(url, options);
+ const raw = await r.text(); // read as text first so we NEVER crash on JSON.parse
+ let data = null;
+ try {
+   data = JSON.parse(raw);
+ } catch {
+   data = null;
+ }
+ return { ok: r.ok, status: r.status, raw, json: data };
+}
 
 async function callTypebot(psid, message) {
  let sessionId = typebotSessions.get(psid);
 
- // Start a session if none exists
+ // 1) Start session
  if (!sessionId) {
-   const start = await fetch(TANSEA_TYPEBOT_RUN_URL, {
+   const start = await fetchJsonOrText(TANSEA_TYPEBOT_START_URL, {
      method: "POST",
      headers: { "Content-Type": "application/json" },
      body: JSON.stringify({ message }),
    });
 
-   const startData = await start.json();
-   sessionId = startData.sessionId;
-   typebotSessions.set(psid, sessionId);
+   if (!start.ok || !start.json) {
+     console.error("Typebot startChat error:", start.status, start.raw?.slice?.(0, 300));
+     return "Sorry — I’m having trouble loading the booking checker right now. Please try again in a moment.";
+   }
 
-   return extractTypebotReply(startData);
+   sessionId = start.json.sessionId;
+   if (sessionId) typebotSessions.set(psid, sessionId);
+
+   const reply = safeExtractTypebotReply(start.json);
+   return reply || "No problem — what dates are you thinking of?";
  }
 
- // Continue existing session
- const r = await fetch(
-   `https://typebot.io/api/v1/sessions/${sessionId}`,
-   {
+ // 2) Continue session
+ const cont = await fetchJsonOrText(`https://typebot.io/api/v1/sessions/${sessionId}`, {
+   method: "POST",
+   headers: { "Content-Type": "application/json" },
+   body: JSON.stringify({ message }),
+ });
+
+ // If session got nuked/expired, restart cleanly once
+ if (!cont.ok || !cont.json) {
+   console.warn("Typebot session error (will reset):", cont.status, cont.raw?.slice?.(0, 300));
+   typebotSessions.delete(psid);
+
+   // try one restart
+   const restart = await fetchJsonOrText(TANSEA_TYPEBOT_START_URL, {
      method: "POST",
      headers: { "Content-Type": "application/json" },
      body: JSON.stringify({ message }),
+   });
+
+   if (!restart.ok || !restart.json) {
+     console.error("Typebot restart error:", restart.status, restart.raw?.slice?.(0, 300));
+     return "Sorry — I’m having trouble right now. Please try again shortly.";
    }
- );
 
- const data = await r.json();
- return extractTypebotReply(data);
-}
+   const newSessionId = restart.json.sessionId;
+   if (newSessionId) typebotSessions.set(psid, newSessionId);
 
-function extractTypebotReply(data) {
- const texts =
-   data?.messages
-     ?.filter(m => m.type === "text")
-     ?.map(m => m.content) ?? [];
+   const reply = safeExtractTypebotReply(restart.json);
+   return reply || "No problem — what dates are you thinking of?";
+ }
 
- return texts.join("\n") || "Sorry — I didn’t quite catch that.";
+ const reply = safeExtractTypebotReply(cont.json);
+ return reply || "Sorry — I didn’t quite catch that. What dates are you thinking of?";
 }
 
 // =====================================================
@@ -119,7 +168,9 @@ app.post("/webhook", async (req, res) => {
        const text = event?.message?.text?.trim();
        if (!psid || !text) continue;
 
+       // Reset: also clear Typebot session if it's Tansea
        if (/^reset$/i.test(text)) {
+         if (pageId === "191735510682679") typebotSessions.delete(psid);
          await sendMessengerText(token, psid, "Reset ✅ How can I help?");
          continue;
        }
@@ -197,10 +248,7 @@ async function callOpenAI(userMessage) {
      }),
    });
    const data = await r.json();
-   return (
-     data?.choices?.[0]?.message?.content?.trim() ||
-     "Sorry — try again?"
-   );
+   return data?.choices?.[0]?.message?.content?.trim() || "Sorry — try again?";
  } catch {
    return "I hit a snag — want me to try again?";
  }
@@ -249,7 +297,5 @@ async function sendWhatsAppText(to, text) {
 
 // ===== HEALTH =====
 app.get("/health", (_, res) => res.send("OK"));
-app.listen(process.env.PORT || 3000, () =>
- console.log("✅ Bot running")
-);
+app.listen(process.env.PORT || 3000, () => console.log("✅ Bot running"));
 
