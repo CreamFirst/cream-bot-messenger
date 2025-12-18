@@ -24,16 +24,10 @@ const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
 const CREAM_PAGE_ID = "760257793839940";
 const TANSEA_PAGE_ID = "191735510682679";
 
-// ===== TOKEN ROUTERS =====
+// ===== TOKEN ROUTER (MESSENGER ONLY) =====
 function getMessengerToken(pageId) {
  if (pageId === CREAM_PAGE_ID) return PAGE_ACCESS_TOKEN;
  if (pageId === TANSEA_PAGE_ID) return PAGE_TOKEN_TANSEA;
- return null;
-}
-
-function getInstagramToken(pageId) {
- if (pageId === CREAM_PAGE_ID) return INSTAGRAM_PAGE_TOKEN;
- if (pageId === TANSEA_PAGE_ID) return INSTAGRAM_TOKEN_TANSEA;
  return null;
 }
 
@@ -93,11 +87,6 @@ app.post("/webhook", async (req, res) => {
        const text = event?.message?.text?.trim();
        if (!psid || !text) continue;
 
-       if (/^reset$/i.test(text)) {
-         await sendMessengerText(token, psid, "Reset ✅ How can I help?");
-         continue;
-       }
-
        const systemPrompt = getSystemPrompt(pageId);
        const reply = await callOpenAI(text, systemPrompt);
        await sendMessengerText(token, psid, reply);
@@ -105,13 +94,9 @@ app.post("/webhook", async (req, res) => {
      return res.sendStatus(200);
    }
 
-   // ----- INSTAGRAM -----
+   // ----- INSTAGRAM (TANSEA ONLY) -----
    if (body.object === "instagram") {
      for (const entry of body.entry || []) {
-       const pageId = entry.id;
-       const token = getInstagramToken(pageId);
-       if (!token) continue;
-
        for (const event of entry.messaging || []) {
          if (event.message?.is_echo) continue;
 
@@ -119,9 +104,9 @@ app.post("/webhook", async (req, res) => {
          const text = event.message?.text?.trim();
          if (!psid || !text) continue;
 
-         const systemPrompt = getSystemPrompt(pageId);
-         const reply = await callOpenAI(text, systemPrompt);
-         await sendInstagramText(token, psid, reply);
+         // Explicit routing — Instagram does NOT expose pageId reliably
+         const reply = await callOpenAI(text, TANSEA_PROMPT);
+         await sendInstagramText(INSTAGRAM_TOKEN_TANSEA, psid, reply);
        }
      }
      return res.sendStatus(200);
