@@ -8,202 +8,200 @@ app.use(express.static("public"));
 app.use(express.json());
 
 // ===== ENV =====
-const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;          // Cream Messenger
-const PAGE_TOKEN_TANSEA = process.env.PAGE_TOKEN_TANSEA;          // Tansea Messenger
-
-const INSTAGRAM_PAGE_TOKEN = process.env.INSTAGRAM_PAGE_TOKEN;    // Cream Instagram
-const INSTAGRAM_TOKEN_TANSEA = process.env.INSTAGRAM_TOKEN_TANSEA; // Tansea Instagram
-
+const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;       // Cream
+const PAGE_TOKEN_TANSEA = process.env.PAGE_TOKEN_TANSEA;       // Tansea
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-
 const WHATSAPP_ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
 const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
+const INSTAGRAM_PAGE_TOKEN = process.env.INSTAGRAM_PAGE_TOKEN;
 
 // ===== PAGE IDS =====
 const CREAM_PAGE_ID = "760257793839940";
 const TANSEA_PAGE_ID = "191735510682679";
 
-// ===== TOKEN ROUTER (MESSENGER ONLY) =====
+// ===== PAGE TOKEN ROUTER =====
 function getMessengerToken(pageId) {
- if (pageId === CREAM_PAGE_ID) return PAGE_ACCESS_TOKEN;
- if (pageId === TANSEA_PAGE_ID) return PAGE_TOKEN_TANSEA;
- return null;
+if (pageId === CREAM_PAGE_ID) return PAGE_ACCESS_TOKEN;
+if (pageId === TANSEA_PAGE_ID) return PAGE_TOKEN_TANSEA;
+return null;
 }
 
 // ===== LOAD PROMPTS =====
 function loadPrompt(filename, fallback) {
- try {
-   const p = path.join(process.cwd(), filename);
-   const txt = fs.readFileSync(p, "utf8");
-   console.log(`✓ Loaded ${filename}`);
-   return txt;
- } catch {
-   console.log(`! Using fallback for ${filename}`);
-   return fallback;
- }
+try {
+  const p = path.join(process.cwd(), filename);
+  const txt = fs.readFileSync(p, "utf8");
+  console.log(`✓ Loaded ${filename}`);
+  return txt;
+} catch {
+  console.log(`! Using fallback for ${filename}`);
+  return fallback;
+}
 }
 
 const CREAM_PROMPT = loadPrompt(
- "prompt.md",
- "You are Cream Bot, a concise, friendly AI assistant."
+"prompt.md",
+"You are Cream Bot, a concise, friendly AI assistant."
 );
 
 const TANSEA_PROMPT = loadPrompt(
- "sunny-prompt.md",
- "You are Sunny, a friendly holiday let concierge."
+"sunny-prompt.md",
+"You are Sunny, a friendly holiday let concierge."
 );
 
+// ===== PROMPT ROUTER =====
 function getSystemPrompt(pageId) {
- if (pageId === TANSEA_PAGE_ID) return TANSEA_PROMPT;
- return CREAM_PROMPT;
+if (pageId === TANSEA_PAGE_ID) return TANSEA_PROMPT;
+return CREAM_PROMPT; // default
 }
 
 // ===== WEBHOOK VERIFY =====
 app.get("/webhook", (req, res) => {
- if (
-   req.query["hub.mode"] === "subscribe" &&
-   req.query["hub.verify_token"] === VERIFY_TOKEN
- ) {
-   return res.status(200).send(req.query["hub.challenge"]);
- }
- return res.sendStatus(403);
+if (
+  req.query["hub.mode"] === "subscribe" &&
+  req.query["hub.verify_token"] === VERIFY_TOKEN
+) {
+  return res.status(200).send(req.query["hub.challenge"]);
+}
+return res.sendStatus(403);
 });
 
 // ===== WEBHOOK RECEIVE =====
 app.post("/webhook", async (req, res) => {
- try {
-   const body = req.body;
+try {
+  const body = req.body;
 
-   // ----- FACEBOOK MESSENGER -----
-   if (body.object === "page") {
-     for (const entry of body.entry || []) {
-       const pageId = entry.id;
-       const token = getMessengerToken(pageId);
-       if (!token) continue;
+  // ----- FACEBOOK MESSENGER -----
+  if (body.object === "page") {
+    for (const entry of body.entry || []) {
+      const pageId = entry.id;
+      const token = getMessengerToken(pageId);
+      if (!token) continue;
 
-       const event = entry.messaging?.[0];
-       const psid = event?.sender?.id;
-       const text = event?.message?.text?.trim();
-       if (!psid || !text) continue;
+      const event = entry.messaging?.[0];
+      const psid = event?.sender?.id;
+      const text = event?.message?.text?.trim();
+      if (!psid || !text) continue;
 
-       const systemPrompt = getSystemPrompt(pageId);
-       const reply = await callOpenAI(text, systemPrompt);
-       await sendMessengerText(token, psid, reply);
-     }
-     return res.sendStatus(200);
-   }
+      if (/^reset$/i.test(text)) {
+        await sendMessengerText(token, psid, "Reset ✅ How can I help?");
+        continue;
+      }
 
-   // ----- INSTAGRAM (TANSEA ONLY) -----
-   if (body.object === "instagram") {
-     for (const entry of body.entry || []) {
-       for (const event of entry.messaging || []) {
-         if (event.message?.is_echo) continue;
+      const systemPrompt = getSystemPrompt(pageId);
+      const reply = await callOpenAI(text, systemPrompt);
+      await sendMessengerText(token, psid, reply);
+    }
+    return res.sendStatus(200);
+  }
 
-         const psid = event.sender?.id;
-         const text = event.message?.text?.trim();
-         if (!psid || !text) continue;
+  // ----- WHATSAPP -----
+  if (body.object === "whatsapp_business_account") {
+    for (const entry of body.entry ?? []) {
+      for (const change of entry.changes ?? []) {
+        for (const msg of change.value?.messages ?? []) {
+          if (msg.type !== "text") continue;
+          const reply = await callOpenAI(msg.text.body, CREAM_PROMPT);
+          await sendWhatsAppText(msg.from, reply);
+        }
+      }
+    }
+    return res.sendStatus(200);
+  }
 
-         // Explicit routing — Instagram does NOT expose pageId reliably
-         const reply = await callOpenAI(text, TANSEA_PROMPT);
-         await sendInstagramText(INSTAGRAM_TOKEN_TANSEA, psid, reply);
-       }
-     }
-     return res.sendStatus(200);
-   }
+  // ----- INSTAGRAM -----
+  if (body.object === "instagram") {
+    for (const entry of body.entry || []) {
+      for (const event of entry.messaging || []) {
+        if (event.message?.is_echo) continue;
+        const psid = event.sender?.id;
+        const text = event.message?.text?.trim();
+        if (!psid || !text) continue;
 
-   // ----- WHATSAPP (Cream only) -----
-   if (body.object === "whatsapp_business_account") {
-     for (const entry of body.entry ?? []) {
-       for (const change of entry.changes ?? []) {
-         for (const msg of change.value?.messages ?? []) {
-           if (msg.type !== "text") continue;
-           const reply = await callOpenAI(msg.text.body, CREAM_PROMPT);
-           await sendWhatsAppText(msg.from, reply);
-         }
-       }
-     }
-     return res.sendStatus(200);
-   }
+        const reply = await callOpenAI(text, CREAM_PROMPT);
+        await sendInstagramText(psid, reply);
+      }
+    }
+    return res.sendStatus(200);
+  }
 
-   return res.sendStatus(404);
- } catch (err) {
-   console.error("Webhook error:", err);
-   return res.sendStatus(500);
- }
+  return res.sendStatus(404);
+} catch (err) {
+  console.error("Webhook error:", err);
+  return res.sendStatus(500);
+}
 });
 
 // ===== OPENAI =====
 async function callOpenAI(userMessage, systemPrompt) {
- try {
-   const r = await fetch("https://api.openai.com/v1/chat/completions", {
-     method: "POST",
-     headers: {
-       "Content-Type": "application/json",
-       Authorization: `Bearer ${OPENAI_API_KEY}`,
-     },
-     body: JSON.stringify({
-       model: "gpt-3.5-turbo",
-       temperature: 0.6,
-       max_tokens: 300,
-       messages: [
-         { role: "system", content: systemPrompt },
-         { role: "user", content: userMessage },
-       ],
-     }),
-   });
-
-   const data = await r.json();
-   return data?.choices?.[0]?.message?.content?.trim() || "Sorry — try again?";
- } catch {
-   return "I hit a snag — want me to try again?";
- }
+try {
+  const r = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-3.5-turbo",
+      temperature: 0.6,
+      max_tokens: 300,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessage },
+      ],
+    }),
+  });
+  const data = await r.json();
+  return data?.choices?.[0]?.message?.content?.trim() || "Sorry — try again?";
+} catch {
+  return "I hit a snag — want me to try again?";
+}
 }
 
 // ===== SENDERS =====
 async function sendMessengerText(token, psid, text) {
- const url = `https://graph.facebook.com/v20.0/me/messages?access_token=${token}`;
- await fetch(url, {
-   method: "POST",
-   headers: { "Content-Type": "application/json" },
-   body: JSON.stringify({
-     recipient: { id: psid },
-     message: { text },
-   }),
- });
+const url = `https://graph.facebook.com/v20.0/me/messages?access_token=${token}`;
+await fetch(url, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    recipient: { id: psid },
+    message: { text },
+  }),
+});
 }
 
-async function sendInstagramText(token, psid, text) {
- const url = `https://graph.facebook.com/v20.0/me/messages?access_token=${token}`;
- await fetch(url, {
-   method: "POST",
-   headers: { "Content-Type": "application/json" },
-   body: JSON.stringify({
-     recipient: { id: psid },
-     message: { text },
-   }),
- });
+async function sendInstagramText(psid, text) {
+const url = `https://graph.facebook.com/v20.0/me/messages?access_token=${INSTAGRAM_PAGE_TOKEN}`;
+await fetch(url, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    recipient: { id: psid },
+    message: { text },
+  }),
+});
 }
 
 async function sendWhatsAppText(to, text) {
- const url = `https://graph.facebook.com/v20.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`;
- await fetch(url, {
-   method: "POST",
-   headers: {
-     "Content-Type": "application/json",
-     Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
-   },
-   body: JSON.stringify({
-     messaging_product: "whatsapp",
-     to,
-     text: { body: text },
-   }),
- });
+const url = `https://graph.facebook.com/v20.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`;
+await fetch(url, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+  },
+  body: JSON.stringify({
+    messaging_product: "whatsapp",
+    to,
+    text: { body: text },
+  }),
+});
 }
 
 // ===== HEALTH =====
 app.get("/health", (_, res) => res.send("OK"));
 app.listen(process.env.PORT || 3000, () =>
- console.log("✅ Bot running")
+console.log("✅ Bot running")
 );
-
