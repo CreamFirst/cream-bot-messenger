@@ -44,7 +44,7 @@ const typebotSessions = new Map();
 
 // ✅ MUST include /startChat (per your Typebot API modal)
 const TANSEA_TYPEBOT_START_URL =
- "https://typebot.io/api/v1/typebots/my-typebot-7hozval/startChat";
+ "https://typebot.io/api/v1/typebots/cmea4aghl0005la0497hozval/startChat";
 
 function safeExtractTypebotReply(data) {
  // Be defensive: Typebot payloads can vary by version/config.
