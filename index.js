@@ -42,9 +42,9 @@ try {
 // Store Messenger → Typebot sessions
 const typebotSessions = new Map();
 
-// ✅ MUST include /startChat (per your Typebot API modal)
+// ✅ MUST include /startChat AND use api.typebot.io
 const TANSEA_TYPEBOT_START_URL =
- "https://typebot.io/api/v1/typebots/cmea4aghl0005la0497hozval/startChat";
+ "https://api.typebot.io/api/v1/typebots/cmea4aghl0005la0497hozval/startChat";
 
 function safeExtractTypebotReply(data) {
  // Be defensive: Typebot payloads can vary by version/config.
@@ -68,14 +68,12 @@ function safeExtractTypebotReply(data) {
 
 async function fetchJsonOrText(url, options) {
  const r = await fetch(url, options);
- const raw = await r.text(); // read as text first so we NEVER crash on JSON.parse
- let data = null;
+ const raw = await r.text(); // never JSON.parse blindly
+ let json = null;
  try {
-   data = JSON.parse(raw);
- } catch {
-   data = null;
- }
- return { ok: r.ok, status: r.status, raw, json: data };
+   json = JSON.parse(raw);
+ } catch {}
+ return { ok: r.ok, status: r.status, raw, json };
 }
 
 async function callTypebot(psid, message) {
@@ -90,7 +88,11 @@ async function callTypebot(psid, message) {
    });
 
    if (!start.ok || !start.json) {
-     console.error("Typebot startChat error:", start.status, start.raw?.slice?.(0, 300));
+     console.error(
+       "Typebot startChat error:",
+       start.status,
+       start.raw?.slice?.(0, 300)
+     );
      return "Sorry — I’m having trouble loading the booking checker right now. Please try again in a moment.";
    }
 
@@ -102,18 +104,24 @@ async function callTypebot(psid, message) {
  }
 
  // 2) Continue session
- const cont = await fetchJsonOrText(`https://typebot.io/api/v1/sessions/${sessionId}`, {
-   method: "POST",
-   headers: { "Content-Type": "application/json" },
-   body: JSON.stringify({ message }),
- });
+ const cont = await fetchJsonOrText(
+   `https://api.typebot.io/api/v1/sessions/${sessionId}`,
+   {
+     method: "POST",
+     headers: { "Content-Type": "application/json" },
+     body: JSON.stringify({ message }),
+   }
+ );
 
- // If session got nuked/expired, restart cleanly once
+ // Session expired / invalid → restart once
  if (!cont.ok || !cont.json) {
-   console.warn("Typebot session error (will reset):", cont.status, cont.raw?.slice?.(0, 300));
+   console.warn(
+     "Typebot session error (resetting):",
+     cont.status,
+     cont.raw?.slice?.(0, 300)
+   );
    typebotSessions.delete(psid);
 
-   // try one restart
    const restart = await fetchJsonOrText(TANSEA_TYPEBOT_START_URL, {
      method: "POST",
      headers: { "Content-Type": "application/json" },
@@ -121,7 +129,11 @@ async function callTypebot(psid, message) {
    });
 
    if (!restart.ok || !restart.json) {
-     console.error("Typebot restart error:", restart.status, restart.raw?.slice?.(0, 300));
+     console.error(
+       "Typebot restart error:",
+       restart.status,
+       restart.raw?.slice?.(0, 300)
+     );
      return "Sorry — I’m having trouble right now. Please try again shortly.";
    }
 
