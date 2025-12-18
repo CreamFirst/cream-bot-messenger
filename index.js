@@ -20,7 +20,7 @@ const INSTAGRAM_PAGE_TOKEN = process.env.INSTAGRAM_PAGE_TOKEN;
 function getMessengerToken(pageId) {
  if (pageId === "760257793839940") return PAGE_ACCESS_TOKEN; // Cream
  if (pageId === "191735510682679") return PAGE_TOKEN_TANSEA; // Tansea
- return null; // Ignore Meta / IG system pages
+ return null;
 }
 
 // ===== LOAD PROMPT =====
@@ -34,6 +34,62 @@ try {
 } catch {
  console.log("! Using default prompt");
 }
+
+// =====================================================
+// === ADDED FOR TANSEA TYPEBOT =========================
+// =====================================================
+
+// Store Messenger → Typebot sessions
+const typebotSessions = new Map();
+
+// Tansea Typebot Run API
+const TANSEA_TYPEBOT_RUN_URL =
+ "https://typebot.io/api/v1/typebots/my-typebot-7hozval";
+
+async function callTypebot(psid, message) {
+ let sessionId = typebotSessions.get(psid);
+
+ // Start a session if none exists
+ if (!sessionId) {
+   const start = await fetch(TANSEA_TYPEBOT_RUN_URL, {
+     method: "POST",
+     headers: { "Content-Type": "application/json" },
+     body: JSON.stringify({ message }),
+   });
+
+   const startData = await start.json();
+   sessionId = startData.sessionId;
+   typebotSessions.set(psid, sessionId);
+
+   return extractTypebotReply(startData);
+ }
+
+ // Continue existing session
+ const r = await fetch(
+   `https://typebot.io/api/v1/sessions/${sessionId}`,
+   {
+     method: "POST",
+     headers: { "Content-Type": "application/json" },
+     body: JSON.stringify({ message }),
+   }
+ );
+
+ const data = await r.json();
+ return extractTypebotReply(data);
+}
+
+function extractTypebotReply(data) {
+ const texts =
+   data?.messages
+     ?.filter(m => m.type === "text")
+     ?.map(m => m.content) ?? [];
+
+ return texts.join("\n") || "Sorry — I didn’t quite catch that.";
+}
+
+// =====================================================
+// === END TANSEA TYPEBOT ===============================
+// =====================================================
 
 // ===== WEBHOOK VERIFY =====
 app.get("/webhook", (req, res) => {
@@ -56,7 +112,7 @@ app.post("/webhook", async (req, res) => {
      for (const entry of body.entry || []) {
        const pageId = entry.id;
        const token = getMessengerToken(pageId);
-       if (!token) continue; // ignore noise
+       if (!token) continue;
 
        const event = entry.messaging?.[0];
        const psid = event?.sender?.id;
@@ -68,7 +124,17 @@ app.post("/webhook", async (req, res) => {
          continue;
        }
 
-       const reply = await callOpenAI(text);
+       let reply;
+
+       // --- Tansea ALWAYS uses Typebot ---
+       if (pageId === "191735510682679") {
+         reply = await callTypebot(psid, text);
+       }
+       // --- Cream uses OpenAI ---
+       else {
+         reply = await callOpenAI(text);
+       }
+
        await sendMessengerText(token, psid, reply);
      }
      return res.sendStatus(200);
@@ -131,7 +197,10 @@ async function callOpenAI(userMessage) {
      }),
    });
    const data = await r.json();
-   return data?.choices?.[0]?.message?.content?.trim() || "Sorry — try again?";
+   return (
+     data?.choices?.[0]?.message?.content?.trim() ||
+     "Sorry — try again?"
+   );
  } catch {
    return "I hit a snag — want me to try again?";
  }
@@ -183,3 +252,4 @@ app.get("/health", (_, res) => res.send("OK"));
 app.listen(process.env.PORT || 3000, () =>
  console.log("✅ Bot running")
 );
+
