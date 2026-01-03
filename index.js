@@ -27,7 +27,7 @@ const TANSEA_PAGE_ID = "191735510682679";
 // ===== IG ACCOUNT IDS (INSTAGRAM) =====
 // IMPORTANT: Instagram webhooks route by Instagram Account ID (entry.id), not Facebook Page ID.
 // Put these in Render env to avoid hardcoding:
-//   IG_ID_CREAM=xxxxxxxxxxxxx
+//   IG_ID_CREAM = "17841476952110712";
 //   IG_ID_TANSEA=yyyyyyyyyyyyy
 const IG_ID_CREAM = process.env.IG_ID_CREAM || "";   // Instagram Account ID for Cream
 const IG_ID_TANSEA = process.env.IG_ID_TANSEA || ""; // Instagram Account ID for Tansea
