@@ -10,9 +10,11 @@ app.use(express.json());
 // ===== ENV =====
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN; // Cream (Messenger Page Token)
 const PAGE_TOKEN_TANSEA = process.env.PAGE_TOKEN_TANSEA; // Tansea (Messenger Page Token)
+const PAGE_TOKEN_COVE = process.env.PAGE_TOKEN_COVE;     // Cove (Messenger Page Token) 
 
-const INSTAGRAM_PAGE_TOKEN = process.env.INSTAGRAM_PAGE_TOKEN; // Cream (Instagram Page Token)
-const INSTAGRAM_TOKEN_TANSEA = process.env.INSTAGRAM_TOKEN_TANSEA; // Tansea (Instagram Page Token) ✅ add in Render env
+const INSTAGRAM_PAGE_TOKEN = process.env.INSTAGRAM_PAGE_TOKEN;         // Cream (Instagram Page Token)
+const INSTAGRAM_TOKEN_TANSEA = process.env.INSTAGRAM_TOKEN_TANSEA;     // Tansea (Instagram Page Token) 
+const INSTAGRAM_TOKEN_COVE = process.env.INSTAGRAM_TOKEN_COVE;         // Cove (Instagram Page Token) 
 
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -23,25 +25,26 @@ const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
 // ===== PAGE IDS (MESSENGER) =====
 const CREAM_PAGE_ID = "760257793839940";
 const TANSEA_PAGE_ID = "191735510682679";
+const COVE_PAGE_ID = "388076394663263"; 
 
 // ===== IG ACCOUNT IDS (INSTAGRAM) =====
-// IMPORTANT: Instagram webhooks route by Instagram Account ID (entry.id), not Facebook Page ID.
-// Put these in Render env to avoid hardcoding:
-//   IG_ID_CREAM=xxxxxxxxxxxxx
-//   IG_ID_TANSEA=yyyyyyyyyyyyy
-const IG_ID_CREAM = process.env.IG_ID_CREAM || "";   // Instagram Account ID for Cream
-const IG_ID_TANSEA = process.env.IG_ID_TANSEA || ""; // Instagram Account ID for Tansea
+// Instagram webhooks route by Instagram Account ID (entry.id), not Facebook Page ID.
+const IG_ID_CREAM = process.env.IG_ID_CREAM || "";   // Cream Instagram Account ID
+const IG_ID_TANSEA = process.env.IG_ID_TANSEA || ""; // Tansea Instagram Account ID
+const IG_ID_COVE = process.env.IG_ID_COVE || "";     // Cove Instagram Account ID 
 
 // ===== TOKEN ROUTERS =====
 function getMessengerToken(pageId) {
  if (pageId === CREAM_PAGE_ID) return PAGE_ACCESS_TOKEN;
  if (pageId === TANSEA_PAGE_ID) return PAGE_TOKEN_TANSEA;
+ if (pageId === COVE_PAGE_ID) return PAGE_TOKEN_COVE;
  return null;
 }
 
 function getInstagramToken(igAccountId) {
  if (igAccountId && igAccountId === IG_ID_CREAM) return INSTAGRAM_PAGE_TOKEN;
  if (igAccountId && igAccountId === IG_ID_TANSEA) return INSTAGRAM_TOKEN_TANSEA;
+ if (igAccountId && igAccountId === IG_ID_COVE) return INSTAGRAM_TOKEN_COVE;
  return null;
 }
 
@@ -68,14 +71,21 @@ const TANSEA_PROMPT = loadPrompt(
  "You are Sunny, a friendly holiday let concierge."
 );
 
+const COVE_PROMPT = loadPrompt(
+ "cove-prompt.md",
+ "You are Cove Bro, a chilled, helpful guide for The Cove in Hope Cove."
+);
+
 // ===== PROMPT ROUTERS =====
 function getMessengerPrompt(pageId) {
  if (pageId === TANSEA_PAGE_ID) return TANSEA_PROMPT;
+ if (pageId === COVE_PAGE_ID) return COVE_PROMPT;
  return CREAM_PROMPT;
 }
 
 function getInstagramPrompt(igAccountId) {
  if (igAccountId && igAccountId === IG_ID_TANSEA) return TANSEA_PROMPT;
+ if (igAccountId && igAccountId === IG_ID_COVE) return COVE_PROMPT;
  return CREAM_PROMPT;
 }
 
@@ -119,7 +129,7 @@ app.post("/webhook", async (req, res) => {
      return res.sendStatus(200);
    }
 
-   // ----- WHATSAPP -----
+   // ----- WHATSAPP (Cream only) -----
    if (body.object === "whatsapp_business_account") {
      for (const entry of body.entry ?? []) {
        for (const change of entry.changes ?? []) {
@@ -136,24 +146,27 @@ app.post("/webhook", async (req, res) => {
    // ----- INSTAGRAM -----
    if (body.object === "instagram") {
      for (const entry of body.entry || []) {
-       const igAccountId = entry.id; // ✅ THIS is the key difference
+       const igAccountId = entry.id; // ✅ key difference vs Messenger
        const token = getInstagramToken(igAccountId);
 
-       // Helpful log so you can grab the IDs once, then set IG_ID_CREAM / IG_ID_TANSEA
+       // Helpful logs to grab IDs and spot routing mistakes
        if (!token) {
-         console.log("📸 IG event for unrecognised igAccountId (set IG_ID_* env):", igAccountId);
+         console.log(
+           "📸 IG event for unrecognised igAccountId (set IG_ID_* env):",
+           igAccountId
+         );
          continue;
        }
 
        for (const event of entry.messaging || []) {
-         // ignore echo
          if (event.message?.is_echo) continue;
 
          const psid = event.sender?.id;
          const text = event.message?.text?.trim();
 
-         // If it’s an attachment/image with no text, reply politely (optional)
-         const hasAttachments = Array.isArray(event.message?.attachments) && event.message.attachments.length > 0;
+         const hasAttachments =
+           Array.isArray(event.message?.attachments) &&
+           event.message.attachments.length > 0;
 
          if (!psid) continue;
 
@@ -162,8 +175,8 @@ app.post("/webhook", async (req, res) => {
            continue;
          }
 
+         // If it’s an attachment/image with no text, reply politely
          if (!text && hasAttachments) {
-           // quick “image reply” behaviour (keeps you from looking broken)
            await sendInstagramText(token, psid, "Nice 🙂 What can I help you with?");
            continue;
          }
@@ -204,6 +217,7 @@ async function callOpenAI(userMessage, systemPrompt) {
        ],
      }),
    });
+
    const data = await r.json();
    return data?.choices?.[0]?.message?.content?.trim() || "Sorry — try again?";
  } catch {
@@ -255,4 +269,5 @@ async function sendWhatsAppText(to, text) {
 // ===== HEALTH =====
 app.get("/health", (_, res) => res.send("OK"));
 app.listen(process.env.PORT || 3000, () => console.log("✅ Bot running"));
+
 
