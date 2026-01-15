@@ -177,7 +177,7 @@ app.post("/webhook", async (req, res) => {
 
          // If it’s an attachment/image with no text, reply politely
          if (!text && hasAttachments) {
-           await sendInstagramText(token, psid, "Nice 🙂 What can I help you with?");
+           await sendInstagramText(token, psid, "Nice one 😃 Thanks for the tag!");
            continue;
          }
 
