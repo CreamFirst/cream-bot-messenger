@@ -8,13 +8,13 @@ app.use(express.static("public"));
 app.use(express.json());
 
 // ===== ENV =====
-const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN; // Cream (Messenger Page Token)
-const PAGE_TOKEN_TANSEA = process.env.PAGE_TOKEN_TANSEA; // Tansea (Messenger Page Token)
-const PAGE_TOKEN_COVE = process.env.PAGE_TOKEN_COVE; // Cove (Messenger Page Token)
+const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN; // Cream
+const PAGE_TOKEN_TANSEA = process.env.PAGE_TOKEN_TANSEA; // Tansea
+const PAGE_TOKEN_COVE = process.env.PAGE_TOKEN_COVE;     // Cove
 
-const INSTAGRAM_PAGE_TOKEN = process.env.INSTAGRAM_PAGE_TOKEN; // Cream (Instagram Page Token)
-const INSTAGRAM_TOKEN_TANSEA = process.env.INSTAGRAM_TOKEN_TANSEA; // Tansea (Instagram Page Token)
-const INSTAGRAM_TOKEN_COVE = process.env.INSTAGRAM_TOKEN_COVE; // Cove (Instagram Page Token)
+const INSTAGRAM_PAGE_TOKEN = process.env.INSTAGRAM_PAGE_TOKEN; // Cream
+const INSTAGRAM_TOKEN_TANSEA = process.env.INSTAGRAM_TOKEN_TANSEA;
+const INSTAGRAM_TOKEN_COVE = process.env.INSTAGRAM_TOKEN_COVE;
 
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -27,41 +27,29 @@ const CREAM_PAGE_ID = "760257793839940";
 const TANSEA_PAGE_ID = "191735510682679";
 const COVE_PAGE_ID = "388076394663263";
 
-// ===== IG ACCOUNT IDS (INSTAGRAM) =====
-// Instagram webhooks route by Instagram Account ID (entry.id), not Facebook Page ID.
+// ===== IG ACCOUNT IDS =====
 const IG_ID_CREAM = process.env.IG_ID_CREAM || "";
 const IG_ID_TANSEA = process.env.IG_ID_TANSEA || "";
 const IG_ID_COVE = process.env.IG_ID_COVE || "";
 
-// ===== HANDOFF / PAUSE (OWNER REPLY DISABLES BOT) =====
-const HANDOFF_MINUTES = Number(process.env.HANDOFF_MINUTES || 60);
+// ===== HANDOFF / PAUSE =====
+const HANDOFF_MINUTES = Number(process.env.HANDOFF_MINUTES || "60");
 
-// per-conversation pause store: key -> epoch ms until which bot is paused
+// key = channel:accountId:userId -> pause expiry
 const pausedUntil = new Map();
 
-// keep track of our own sent message IDs so we don't treat bot echoes as "owner replied"
-const recentBotMsgIds = new Map(); // msgId -> expiryEpochMs
+// Track bot message IDs so echoes don’t pause us
+const recentBotMsgIds = new Map();
 const BOT_MSG_TTL_MS = 2 * 60 * 1000;
-
-function cleanupRecentBotIds() {
- const now = Date.now();
- for (const [id, exp] of recentBotMsgIds.entries()) {
-   if (exp <= now) recentBotMsgIds.delete(id);
- }
-}
 
 function rememberBotMsgId(id) {
  if (!id) return;
- cleanupRecentBotIds();
  recentBotMsgIds.set(id, Date.now() + BOT_MSG_TTL_MS);
 }
 
 function isOurBotEcho(message) {
- // If the platform provides app_id for echoes sent by an app, treat that as ours.
- // Also treat as ours if MID matches something we just sent.
- const mid = message?.mid;
- if (mid && recentBotMsgIds.has(mid)) return true;
- if (message?.app_id) return true; // typical for app-sent messages
+ if (message?.app_id) return true;
+ if (message?.mid && recentBotMsgIds.has(message.mid)) return true;
  return false;
 }
 
@@ -70,8 +58,10 @@ function pauseKey(channel, accountId, userId) {
 }
 
 function pauseConversation(channel, accountId, userId) {
- const until = Date.now() + HANDOFF_MINUTES * 60 * 1000;
- pausedUntil.set(pauseKey(channel, accountId, userId), until);
+ pausedUntil.set(
+   pauseKey(channel, accountId, userId),
+   Date.now() + HANDOFF_MINUTES * 60 * 1000
+ );
 }
 
 function isPaused(channel, accountId, userId) {
@@ -94,28 +84,24 @@ function getMessengerToken(pageId) {
 }
 
 function getInstagramToken(igAccountId) {
- if (igAccountId && igAccountId === IG_ID_CREAM) return INSTAGRAM_PAGE_TOKEN;
- if (igAccountId && igAccountId === IG_ID_TANSEA) return INSTAGRAM_TOKEN_TANSEA;
- if (igAccountId && igAccountId === IG_ID_COVE) return INSTAGRAM_TOKEN_COVE;
+ if (igAccountId === IG_ID_CREAM) return INSTAGRAM_PAGE_TOKEN;
+ if (igAccountId === IG_ID_TANSEA) return INSTAGRAM_TOKEN_TANSEA;
+ if (igAccountId === IG_ID_COVE) return INSTAGRAM_TOKEN_COVE;
  return null;
 }
 
 // ===== LOAD PROMPTS =====
 function loadPrompt(filename, fallback) {
  try {
-   const p = path.join(process.cwd(), filename);
-   const txt = fs.readFileSync(p, "utf8");
-   console.log(`✓ Loaded ${filename}`);
-   return txt;
+   return fs.readFileSync(path.join(process.cwd(), filename), "utf8");
  } catch {
-   console.log(`! Using fallback for ${filename}`);
    return fallback;
  }
 }
 
-const CREAM_PROMPT = loadPrompt("prompt.md", "You are Cream Bot, a concise, friendly AI assistant.");
-const TANSEA_PROMPT = loadPrompt("sunny-prompt.md", "You are Sunny, a friendly holiday let concierge.");
-const COVE_PROMPT = loadPrompt("cove-prompt.md", "You are Cove Bro, a chilled, helpful guide for The Cove in Hope Cove.");
+const CREAM_PROMPT = loadPrompt("prompt.md", "You are Cream Bot.");
+const TANSEA_PROMPT = loadPrompt("sunny-prompt.md", "You are Sunny.");
+const COVE_PROMPT = loadPrompt("cove-prompt.md", "You are Cove Bro.");
 
 // ===== PROMPT ROUTERS =====
 function getMessengerPrompt(pageId) {
@@ -124,15 +110,18 @@ function getMessengerPrompt(pageId) {
  return CREAM_PROMPT;
 }
 
-function getInstagramPrompt(igAccountId) {
- if (igAccountId && igAccountId === IG_ID_TANSEA) return TANSEA_PROMPT;
- if (igAccountId && igAccountId === IG_ID_COVE) return COVE_PROMPT;
+function getInstagramPrompt(igId) {
+ if (igId === IG_ID_TANSEA) return TANSEA_PROMPT;
+ if (igId === IG_ID_COVE) return COVE_PROMPT;
  return CREAM_PROMPT;
 }
 
 // ===== WEBHOOK VERIFY =====
 app.get("/webhook", (req, res) => {
- if (req.query["hub.mode"] === "subscribe" && req.query["hub.verify_token"] === VERIFY_TOKEN) {
+ if (
+   req.query["hub.mode"] === "subscribe" &&
+   req.query["hub.verify_token"] === VERIFY_TOKEN
+ ) {
    return res.status(200).send(req.query["hub.challenge"]);
  }
  return res.sendStatus(403);
@@ -150,48 +139,31 @@ app.post("/webhook", async (req, res) => {
        const token = getMessengerToken(pageId);
        if (!token) continue;
 
-       // Messenger can batch multiple events; process all just in case
        for (const event of entry.messaging || []) {
-         const psid = event?.sender?.id;
-         if (!psid) continue;
+         const userId = event.sender?.id;
+         if (!userId) continue;
 
-         // If the PAGE/OWNER replied in inbox, FB often sends an echo event.
-         // We pause the bot for this user unless it's an echo we sent ourselves.
-         if (event?.message?.is_echo) {
-           if (!isOurBotEcho(event.message)) {
-             pauseConversation("msg", pageId, psid);
+         // OWNER / PAGE REPLY → PAUSE BOT
+         if (event.message?.is_echo) {
+           const customerId = event.recipient?.id;
+           if (customerId && !isOurBotEcho(event.message)) {
+             pauseConversation("msg", pageId, customerId);
            }
            continue;
          }
 
-         // If paused because owner replied recently, do nothing
-         if (isPaused("msg", pageId, psid)) continue;
+         if (isPaused("msg", pageId, userId)) continue;
 
-         const text = event?.message?.text?.trim();
+         const text = event.message?.text?.trim();
          if (!text) continue;
 
          if (/^reset$/i.test(text)) {
-           await sendMessengerText(token, psid, "Reset ✅ How can I help?");
+           await sendMessengerText(token, userId, "Reset ✅ How can I help?");
            continue;
          }
 
-         const systemPrompt = getMessengerPrompt(pageId);
-         const reply = await callOpenAI(text, systemPrompt);
-         await sendMessengerText(token, psid, reply);
-       }
-     }
-     return res.sendStatus(200);
-   }
-
-   // ----- WHATSAPP (Cream only) -----
-   if (body.object === "whatsapp_business_account") {
-     for (const entry of body.entry ?? []) {
-       for (const change of entry.changes ?? []) {
-         for (const msg of change.value?.messages ?? []) {
-           if (msg.type !== "text") continue;
-           const reply = await callOpenAI(msg.text.body, CREAM_PROMPT);
-           await sendWhatsAppText(msg.from, reply);
-         }
+         const reply = await callOpenAI(text, getMessengerPrompt(pageId));
+         await sendMessengerText(token, userId, reply);
        }
      }
      return res.sendStatus(200);
@@ -200,50 +172,44 @@ app.post("/webhook", async (req, res) => {
    // ----- INSTAGRAM -----
    if (body.object === "instagram") {
      for (const entry of body.entry || []) {
-       const igAccountId = entry.id; // ✅ key difference vs Messenger
+       const igAccountId = entry.id;
        const token = getInstagramToken(igAccountId);
-
-       if (!token) {
-         console.log("📸 IG event for unrecognised igAccountId (set IG_ID_* env):", igAccountId);
-         continue;
-       }
+       if (!token) continue;
 
        for (const event of entry.messaging || []) {
-         const psid = event.sender?.id;
-         if (!psid) continue;
+         const userId = event.sender?.id;
+         if (!userId) continue;
 
-         // Owner/human reply often comes through as an echo; pause unless it's our own echo
-         if (event?.message?.is_echo) {
-           if (!isOurBotEcho(event.message)) {
-             pauseConversation("ig", igAccountId, psid);
+         // OWNER / HUMAN REPLY → PAUSE BOT
+         if (event.message?.is_echo) {
+           const customerId = event.recipient?.id;
+           if (customerId && !isOurBotEcho(event.message)) {
+             pauseConversation("ig", igAccountId, customerId);
            }
            continue;
          }
 
-         // If paused because owner replied recently, do nothing
-         if (isPaused("ig", igAccountId, psid)) continue;
+         if (isPaused("ig", igAccountId, userId)) continue;
 
          const text = event.message?.text?.trim();
-
          const hasAttachments =
-           Array.isArray(event.message?.attachments) && event.message.attachments.length > 0;
+           Array.isArray(event.message?.attachments) &&
+           event.message.attachments.length > 0;
 
          if (/^reset$/i.test(text || "")) {
-           await sendInstagramText(token, psid, "Reset ✅ How can I help?");
+           await sendInstagramText(token, userId, "Reset ✅ How can I help?");
            continue;
          }
 
-         // If it’s an attachment/image with no text, reply politely
          if (!text && hasAttachments) {
-           await sendInstagramText(token, psid, "Nice one 😃 Thanks for the tag!");
+           await sendInstagramText(token, userId, "Nice one 😃 Thanks for the tag!");
            continue;
          }
 
          if (!text) continue;
 
-         const systemPrompt = getInstagramPrompt(igAccountId);
-         const reply = await callOpenAI(text, systemPrompt);
-         await sendInstagramText(token, psid, reply);
+         const reply = await callOpenAI(text, getInstagramPrompt(igAccountId));
+         await sendInstagramText(token, userId, reply);
        }
      }
      return res.sendStatus(200);
@@ -285,66 +251,35 @@ async function callOpenAI(userMessage, systemPrompt) {
 
 // ===== SENDERS =====
 async function sendMessengerText(token, psid, text) {
- const url = `https://graph.facebook.com/v20.0/me/messages?access_token=${token}`;
- const r = await fetch(url, {
-   method: "POST",
-   headers: { "Content-Type": "application/json" },
-   body: JSON.stringify({
-     recipient: { id: psid },
-     message: { text },
-   }),
- });
-
- // Try to capture message id so our own echoes don't trigger a pause
+ const r = await fetch(
+   `https://graph.facebook.com/v20.0/me/messages?access_token=${token}`,
+   {
+     method: "POST",
+     headers: { "Content-Type": "application/json" },
+     body: JSON.stringify({ recipient: { id: psid }, message: { text } }),
+   }
+ );
  try {
    const data = await r.json();
-   const msgId = data?.message_id || data?.messageId || data?.message?.mid;
-   rememberBotMsgId(msgId);
- } catch {
-   // ignore
- }
+   rememberBotMsgId(data?.message_id || data?.message?.mid);
+ } catch {}
 }
 
 async function sendInstagramText(token, psid, text) {
- const url = `https://graph.facebook.com/v20.0/me/messages?access_token=${token}`;
- const r = await fetch(url, {
-   method: "POST",
-   headers: { "Content-Type": "application/json" },
-   body: JSON.stringify({
-     recipient: { id: psid },
-     message: { text },
-   }),
- });
-
- // Try to capture message id so our own echoes don't trigger a pause
+ const r = await fetch(
+   `https://graph.facebook.com/v20.0/me/messages?access_token=${token}`,
+   {
+     method: "POST",
+     headers: { "Content-Type": "application/json" },
+     body: JSON.stringify({ recipient: { id: psid }, message: { text } }),
+   }
+ );
  try {
    const data = await r.json();
-   const msgId = data?.message_id || data?.messageId || data?.message?.mid;
-   rememberBotMsgId(msgId);
- } catch {
-   // ignore
- }
-}
-
-async function sendWhatsAppText(to, text) {
- const url = `https://graph.facebook.com/v20.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`;
- await fetch(url, {
-   method: "POST",
-   headers: {
-     "Content-Type": "application/json",
-     Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
-   },
-   body: JSON.stringify({
-     messaging_product: "whatsapp",
-     to,
-     text: { body: text },
-   }),
- });
+   rememberBotMsgId(data?.message_id || data?.message?.mid);
+ } catch {}
 }
 
 // ===== HEALTH =====
 app.get("/health", (_, res) => res.send("OK"));
 app.listen(process.env.PORT || 3000, () => console.log("✅ Bot running"));
-
-
-
