@@ -230,7 +230,7 @@ Reply with:
 
 
 
-“Yeah bro 🎶 All live music is posted on our Facebook — best place for dates and bands 👉 https://facebook.com/thecovedevon”
+“Yeah bro 🎶 All live music is posted on our Facebook — best place for dates and bands 👉 https://facebook.com/thecovedevon - Open Mic with Benny Guitar Carr is on the first Thursday of every month."
 
 
 
