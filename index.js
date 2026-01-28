@@ -169,6 +169,20 @@ app.post("/webhook", async (req, res) => {
      return res.sendStatus(200);
    }
 
+   // ----- WHATSAPP (Cream only) -----
+  if (body.object === "whatsapp_business_account") {
+    for (const entry of body.entry ?? []) {
+      for (const change of entry.changes ?? []) {
+        for (const msg of change.value?.messages ?? []) {
+          if (msg.type !== "text") continue;
+          const reply = await callOpenAI(msg.text.body, CREAM_PROMPT);
+          await sendWhatsAppText(msg.from, reply);
+        }
+      }
+    }
+    return res.sendStatus(200);
+  }
+
    // ----- INSTAGRAM -----
    if (body.object === "instagram") {
      for (const entry of body.entry || []) {
