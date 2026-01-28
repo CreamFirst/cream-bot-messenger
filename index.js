@@ -294,6 +294,22 @@ async function sendInstagramText(token, psid, text) {
  } catch {}
 }
 
+async function sendWhatsAppText(to, text) {
+const url = `https://graph.facebook.com/v20.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`;
+await fetch(url, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+  },
+  body: JSON.stringify({
+    messaging_product: "whatsapp",
+    to,
+    text: { body: text },
+  }),
+});
+}
+
 // ===== HEALTH =====
 app.get("/health", (_, res) => res.send("OK"));
 app.listen(process.env.PORT || 3000, () => console.log("✅ Bot running"));
