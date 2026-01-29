@@ -7,6 +7,55 @@ const app = express();
 app.use(express.static("public"));
 app.use(express.json());
 
+// ===== SIMPLE OAUTH (safe / no tokens shown) =====
+const FB_APP_ID = process.env.FB_APP_ID;
+const FB_APP_SECRET = process.env.FB_APP_SECRET;
+const OAUTH_REDIRECT_URI = process.env.OAUTH_REDIRECT_URI;
+
+app.get("/connect", (req, res) => {
+ const scope = [
+   "pages_show_list",
+   "pages_manage_metadata",
+   "pages_messaging",
+   "instagram_basic",
+   "instagram_manage_messages",
+ ].join(",");
+
+ const authUrl =
+   "https://www.facebook.com/v18.0/dialog/oauth" +
+   `?client_id=${encodeURIComponent(FB_APP_ID)}` +
+   `&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}` +
+   `&response_type=code` +
+   `&scope=${encodeURIComponent(scope)}`;
+
+ res.redirect(authUrl);
+});
+
+app.get("/auth", async (req, res) => {
+ if (!req.query.code) {
+   return res.status(400).send("Missing auth code");
+ }
+
+ // Exchange code → token (we do NOT store or show it)
+ await fetch(
+   `https://graph.facebook.com/v18.0/oauth/access_token` +
+     `?client_id=${FB_APP_ID}` +
+     `&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}` +
+     `&client_secret=${FB_APP_SECRET}` +
+     `&code=${req.query.code}`
+ );
+
+ // Clean confirmation page
+ res.send(`
+   <div style="font-family: system-ui; text-align:center; margin-top:80px;">
+     <h2>✅ Connected</h2>
+     <p>You can close this tab.</p>
+   </div>
+ `);
+});
+
+
+
 // ===== ENV =====
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN; // Cream
 const PAGE_TOKEN_TANSEA = process.env.PAGE_TOKEN_TANSEA; // Tansea
