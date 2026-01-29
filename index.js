@@ -169,19 +169,58 @@ app.post("/webhook", async (req, res) => {
      return res.sendStatus(200);
    }
 
-   // ----- WHATSAPP (Cream only) -----
-  if (body.object === "whatsapp_business_account") {
-    for (const entry of body.entry ?? []) {
-      for (const change of entry.changes ?? []) {
-        for (const msg of change.value?.messages ?? []) {
-          if (msg.type !== "text") continue;
-          const reply = await callOpenAI(msg.text.body, CREAM_PROMPT);
-          await sendWhatsAppText(msg.from, reply);
-        }
-      }
-    }
-    return res.sendStatus(200);
-  }
+// ----- WHATSAPP (Cream only) -----
+if (body.object === "whatsapp_business_account") {
+ console.log("🟢 WhatsApp webhook received");
+
+ for (const entry of body.entry ?? []) {
+   for (const change of entry.changes ?? []) {
+     const value = change.value || {};
+     const msgs = value.messages ?? [];
+
+     console.log("WA change:", {
+       hasMessages: msgs.length,
+       phone_number_id: value.metadata?.phone_number_id,
+     });
+
+     for (const msg of msgs) {
+       console.log("WA msg:", { from: msg.from, type: msg.type });
+
+       if (msg.type !== "text") continue;
+
+       const reply = await callOpenAI(msg.text.body, CREAM_PROMPT);
+       await sendWhatsAppText(msg.from, reply);
+     }
+   }
+ }
+
+ return res.sendStatus(200);
+}
+
+async function sendWhatsAppText(to, text) {
+ const url = `https://graph.facebook.com/v20.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`;
+
+ const r = await fetch(url, {
+   method: "POST",
+   headers: {
+     "Content-Type": "application/json",
+     Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+   },
+   body: JSON.stringify({
+     messaging_product: "whatsapp",
+     to,
+     text: { body: text },
+   }),
+ });
+
+ const body = await r.text();
+ console.log("📤 WA send status:", r.status, body);
+
+ if (!r.ok) {
+   throw new Error(`WhatsApp send failed (${r.status}): ${body}`);
+ }
+}
+
 
    // ----- INSTAGRAM -----
    if (body.object === "instagram") {
