@@ -416,11 +416,14 @@ app.get("/supabase-ping", async (req, res) => {
     try {
     const { data, error } = await supabase
      .from("clients")
-     .select("id")
+     .select("id, business_name, channel")
      .limit(1);
     if (error) {
      return res.status(500).send(error.message);
     }
+
+   console.log("supabase client test:", data);
+     
     res.json({ ok: true, rows: data.length });
     } catch (err) {
     res.status(500).send(err.message);
