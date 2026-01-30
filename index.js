@@ -2,6 +2,8 @@ import express from "express";
 import fetch from "node-fetch";
 import fs from "fs";
 import path from "path";
+import { createClient } from "@supabase/supabase-js"; 
+
 
 const app = express();
 app.use(express.static("public"));
@@ -54,6 +56,14 @@ app.get("/auth", async (req, res) => {
  `);
 });
 
+// ==== SUPABASE CLIENT ====
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+const supabase =
+ SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
+   ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+   : null;
 
 
 // ===== ENV =====
@@ -400,4 +410,21 @@ await fetch(url, {
 
 // ===== HEALTH =====
 app.get("/health", (_, res) => res.send("OK"));
+
+// ===== SUPABASE TEST ROUTE =====
+app.get("/supabase-ping", async (req, res) => {
+    try {
+    const { data, error } = await supabase
+     .from("clients")
+     .select("id")
+     .limit(1);
+    if (error) {
+     return res.status(500).send(error.message);
+    }
+    res.json({ ok: true, rows: data.length });
+    } catch (err) {
+    res.status(500).send(err.message);
+    }
+    });
+
 app.listen(process.env.PORT || 3000, () => console.log("✅ Bot running"));
