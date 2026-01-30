@@ -9,51 +9,122 @@ const app = express();
 app.use(express.static("public"));
 app.use(express.json());
 
-// ===== SIMPLE OAUTH (safe / no tokens shown) =====
+// ===== OAUTH (new clients) =====
 const FB_APP_ID = process.env.FB_APP_ID;
 const FB_APP_SECRET = process.env.FB_APP_SECRET;
 const OAUTH_REDIRECT_URI = process.env.OAUTH_REDIRECT_URI;
 
+function requireEnv(name, value) {
+ if (!value) throw new Error(`Missing env var: ${name}`);
+}
+
 app.get("/connect", (req, res) => {
-const scope = [
-  "pages_show_list",
-  "pages_manage_metadata",
-  "pages_messaging",
-  "instagram_basic",
-  "instagram_manage_messages",
-].join(",");
+ try {
+   requireEnv("FB_APP_ID", FB_APP_ID);
+   requireEnv("OAUTH_REDIRECT_URI", OAUTH_REDIRECT_URI);
 
-const authUrl =
-  "https://www.facebook.com/v18.0/dialog/oauth" +
-  `?client_id=${encodeURIComponent(FB_APP_ID)}` +
-  `&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}` +
-  `&response_type=code` +
-  `&scope=${encodeURIComponent(scope)}`;
+   const scope = [
+     "pages_show_list",
+     "pages_manage_metadata",
+     "pages_messaging",
+     "instagram_basic",
+     "instagram_manage_messages",
+   ].join(",");
 
-res.redirect(authUrl);
+   const authUrl =
+     "https://www.facebook.com/v18.0/dialog/oauth" +
+     `?client_id=${encodeURIComponent(FB_APP_ID)}` +
+     `&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}` +
+     `&response_type=code` +
+     `&scope=${encodeURIComponent(scope)}`;
+
+   return res.redirect(authUrl);
+ } catch (err) {
+   console.error("Connect handler error:", err);
+   return res.status(500).send(`Connect error: ${err.message}`);
+ }
 });
 
 app.get("/auth", async (req, res) => {
-if (!req.query.code) {
-  return res.status(400).send("Missing auth code");
+ try {
+   requireEnv("FB_APP_ID", FB_APP_ID);
+   requireEnv("FB_APP_SECRET", FB_APP_SECRET);
+   requireEnv("OAUTH_REDIRECT_URI", OAUTH_REDIRECT_URI);
+
+   const code = req.query.code;
+   if (!code) return res.status(400).send("Missing auth code");
+
+   // 1) Exchange code -> user access token
+   const tokenResp = await fetch(
+     "https://graph.facebook.com/v18.0/oauth/access_token" +
+       `?client_id=${encodeURIComponent(FB_APP_ID)}` +
+       `&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}` +
+       `&client_secret=${encodeURIComponent(FB_APP_SECRET)}` +
+       `&code=${encodeURIComponent(code)}`
+   );
+
+   const tokenJson = await tokenResp.json();
+   const userAccessToken = tokenJson?.access_token;
+
+   if (!userAccessToken) {
+     console.error("OAuth token exchange failed:", tokenJson);
+     return res.status(500).send("OAuth token exchange failed");
+   }
+
+   // OPTIONAL (leave in for debugging; remove later):
+   // 2) Fetch Meta user id (who connected)
+   const meResp = await fetch(
+     `https://graph.facebook.com/v18.0/me?fields=id,name&access_token=${encodeURIComponent(
+       userAccessToken
+     )}`
+   );
+   const meJson = await meResp.json();
+
+   // 3) Fetch pages list (what we’ll use later to pick page + get page tokens)
+   const pagesResp = await fetch(
+     `https://graph.facebook.com/v18.0/me/accounts?access_token=${encodeURIComponent(
+       userAccessToken
+     )}`
+   );
+   const pagesJson = await pagesResp.json();
+
+   // ===== TEMP SUPABASE TEST WRITE =====
+if (supabase && pagesJson?.data?.length) {
+ const firstPage = pagesJson.data[0];
+
+ const { error } = await supabase
+   .from("clients")
+   .insert({
+     business_name: "Cream OAuth Test",
+     channel: "meta",
+     meta_user_id: meJson?.id || null,
+     page_id: firstPage.id,
+     page_name: firstPage.name,
+     connected_at: new Date().toISOString(),
+   });
+
+ if (error) {
+   console.error("Supabase insert failed:", error);
+ } else {
+   console.log("✅ Supabase insert OK");
+ }
 }
 
-// Exchange code → token (we do NOT store or show it)
-await fetch(
-  `https://graph.facebook.com/v18.0/oauth/access_token` +
-    `?client_id=${FB_APP_ID}` +
-    `&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}` +
-    `&client_secret=${FB_APP_SECRET}` +
-    `&code=${req.query.code}`
-);
 
-// Clean confirmation page
-res.send(`
-  <div style="font-family: system-ui; text-align:center; margin-top:80px;">
-    <h2>✅ Connected</h2>
-    <p>You can close this tab.</p>
-  </div>
-`);
+   console.log("OAuth connected user:", meJson);
+   console.log("Pages available:", pagesJson?.data?.map(p => ({ id: p.id, name: p.name })) || pagesJson);
+
+   // Clean confirmation page
+   return res.send(`
+     <div style="font-family: system-ui; text-align:center; margin-top:80px;">
+       <h2>✅ Connected</h2>
+       <p>You can close this tab.</p>
+     </div>
+   `);
+ } catch (err) {
+   console.error("Auth handler error:", err);
+   return res.status(500).send(`Auth error: ${err.message}`);
+ }
 });
 
 // ==== SUPABASE CLIENT ====
