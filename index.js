@@ -9,122 +9,161 @@ const app = express();
 app.use(express.static("public"));
 app.use(express.json());
 
-// ===== OAUTH (new clients) =====
+/* ===== OAUTH (store page + IG tokens) ===== */
+
 const FB_APP_ID = process.env.FB_APP_ID;
 const FB_APP_SECRET = process.env.FB_APP_SECRET;
 const OAUTH_REDIRECT_URI = process.env.OAUTH_REDIRECT_URI;
 
 function requireEnv(name, value) {
-if (!value) throw new Error(`Missing env var: ${name}`);
+ if (!value) throw new Error(`Missing env var: ${name}`);
 }
 
-app.get("/connect", (req, res) => {
-try {
-  requireEnv("FB_APP_ID", FB_APP_ID);
-  requireEnv("OAUTH_REDIRECT_URI", OAUTH_REDIRECT_URI);
+async function upsertClientRow({ supabase, row }) {
+ // Upsert by page_id (no unique constraint required)
+ const existing = await supabase
+   .from("clients")
+   .select("id")
+   .eq("page_id", row.page_id)
+   .limit(1)
+   .maybeSingle();
 
-  const scope = [
-    "pages_show_list",
-    "pages_manage_metadata",
-    "pages_messaging",
-    "instagram_basic",
-    "instagram_manage_messages",
-  ].join(",");
+ if (existing?.data?.id) {
+   const { error } = await supabase
+     .from("clients")
+     .update({ ...row, updated_at: new Date().toISOString() })
+     .eq("id", existing.data.id);
 
-  const authUrl =
-    "https://www.facebook.com/v18.0/dialog/oauth" +
-    `?client_id=${encodeURIComponent(FB_APP_ID)}` +
-    `&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}` +
-    `&response_type=code` +
-    `&scope=${encodeURIComponent(scope)}`;
+   if (error) throw error;
+   return { mode: "updated", id: existing.data.id };
+ } else {
+   const { data, error } = await supabase
+     .from("clients")
+     .insert({ ...row, created_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+     .select("id")
+     .single();
 
-  return res.redirect(authUrl);
-} catch (err) {
-  console.error("Connect handler error:", err);
-  return res.status(500).send(`Connect error: ${err.message}`);
+   if (error) throw error;
+   return { mode: "inserted", id: data.id };
+ }
 }
-});
+
+async function getLongLivedUserToken(shortUserToken) {
+ const longResp = await fetch(
+   "https://graph.facebook.com/v18.0/oauth/access_token" +
+     `?grant_type=fb_exchange_token` +
+     `&client_id=${encodeURIComponent(FB_APP_ID)}` +
+     `&client_secret=${encodeURIComponent(FB_APP_SECRET)}` +
+     `&fb_exchange_token=${encodeURIComponent(shortUserToken)}`
+ );
+ return longResp.json();
+}
+
+async function getIgAccountIdForPage(pageId, pageAccessToken) {
+ if (!pageId || !pageAccessToken) return null;
+
+ const igResp = await fetch(
+   `https://graph.facebook.com/v18.0/${encodeURIComponent(pageId)}` +
+     `?fields=instagram_business_account{id},connected_instagram_account{id}` +
+     `&access_token=${encodeURIComponent(pageAccessToken)}`
+ );
+
+ const igJson = await igResp.json();
+ return (
+   igJson?.instagram_business_account?.id ||
+   igJson?.connected_instagram_account?.id ||
+   null
+ );
+}
 
 app.get("/auth", async (req, res) => {
-try {
-  requireEnv("FB_APP_ID", FB_APP_ID);
-  requireEnv("FB_APP_SECRET", FB_APP_SECRET);
-  requireEnv("OAUTH_REDIRECT_URI", OAUTH_REDIRECT_URI);
+ try {
+   requireEnv("FB_APP_ID", FB_APP_ID);
+   requireEnv("FB_APP_SECRET", FB_APP_SECRET);
+   requireEnv("OAUTH_REDIRECT_URI", OAUTH_REDIRECT_URI);
 
-  const code = req.query.code;
-  if (!code) return res.status(400).send("Missing auth code");
+   if (!supabase) return res.status(500).send("Supabase not configured");
 
-  // 1) Exchange code -> user access token
-  const tokenResp = await fetch(
-    "https://graph.facebook.com/v18.0/oauth/access_token" +
-      `?client_id=${encodeURIComponent(FB_APP_ID)}` +
-      `&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}` +
-      `&client_secret=${encodeURIComponent(FB_APP_SECRET)}` +
-      `&code=${encodeURIComponent(code)}`
-  );
+   const code = req.query.code;
+   if (!code) return res.status(400).send("Missing auth code");
 
-  const tokenJson = await tokenResp.json();
-  const userAccessToken = tokenJson?.access_token;
+   /* 1) code -> short-lived user token */
+   const tokenResp = await fetch(
+     "https://graph.facebook.com/v18.0/oauth/access_token" +
+       `?client_id=${encodeURIComponent(FB_APP_ID)}` +
+       `&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}` +
+       `&client_secret=${encodeURIComponent(FB_APP_SECRET)}` +
+       `&code=${encodeURIComponent(code)}`
+   );
 
-  if (!userAccessToken) {
-    console.error("OAuth token exchange failed:", tokenJson);
-    return res.status(500).send("OAuth token exchange failed");
-  }
+   const tokenJson = await tokenResp.json();
+   const shortUserToken = tokenJson?.access_token;
 
-  // OPTIONAL (leave in for debugging; remove later):
-  // 2) Fetch Meta user id (who connected)
-  const meResp = await fetch(
-    `https://graph.facebook.com/v18.0/me?fields=id,name&access_token=${encodeURIComponent(
-      userAccessToken
-    )}`
-  );
-  const meJson = await meResp.json();
+   if (!shortUserToken) {
+     console.error("OAuth token exchange failed:", tokenJson);
+     return res.status(500).send("OAuth token exchange failed");
+   }
 
-  // 3) Fetch pages list (what we’ll use later to pick page + get page tokens)
-  const pagesResp = await fetch(
-    `https://graph.facebook.com/v18.0/me/accounts?access_token=${encodeURIComponent(
-      userAccessToken
-    )}`
-  );
-  const pagesJson = await pagesResp.json();
+   /* 2) short -> long-lived user token (better longevity for page tokens) */
+   const longJson = await getLongLivedUserToken(shortUserToken);
+   const userAccessToken = longJson?.access_token || shortUserToken;
 
-  // ===== TEMP SUPABASE TEST WRITE =====
-if (supabase && pagesJson?.data?.length) {
-const firstPage = pagesJson.data[0];
+   /* 3) who connected */
+   const meResp = await fetch(
+     `https://graph.facebook.com/v18.0/me?fields=id,name&access_token=${encodeURIComponent(userAccessToken)}`
+   );
+   const meJson = await meResp.json();
 
-const { error } = await supabase
-  .from("clients")
-  .insert({
-    business_name: "Cream OAuth Test",
-    channel: "meta",
-    meta_user_id: meJson?.id || null,
-    page_id: firstPage.id,
-    page_name: firstPage.name,
-    connected_at: new Date().toISOString(),
-  });
+   /* 4) pages selected in Meta (includes page access_token per page) */
+   const pagesResp = await fetch(
+     `https://graph.facebook.com/v18.0/me/accounts?access_token=${encodeURIComponent(userAccessToken)}`
+   );
+   const pagesJson = await pagesResp.json();
+   const pages = Array.isArray(pagesJson?.data) ? pagesJson.data : [];
 
-if (error) {
-  console.error("Supabase insert failed:", error);
-} else {
-  console.log("✅ Supabase insert OK");
-}
-}
+   console.log("OAuth connected user:", meJson);
+   console.log("Pages available:", pages.map(p => ({ id: p.id, name: p.name })) );
 
+   if (!pages.length) {
+     console.error("No pages returned:", pagesJson);
+     return res.status(500).send("No pages returned from /me/accounts");
+   }
 
-  console.log("OAuth connected user:", meJson);
-  console.log("Pages available:", pagesJson?.data?.map(p => ({ id: p.id, name: p.name })) || pagesJson);
+   /* 5) store EACH selected page (no picker, no double flow) */
+   for (const p of pages) {
+     const pageId = p.id;
+     const pageName = p.name;
+     const pageAccessToken = p.access_token;
 
-  // Clean confirmation page
-  return res.send(`
-    <div style="font-family: system-ui; text-align:center; margin-top:80px;">
-      <h2>✅ Connected</h2>
-      <p>You can close this tab.</p>
-    </div>
-  `);
-} catch (err) {
-  console.error("Auth handler error:", err);
-  return res.status(500).send(`Auth error: ${err.message}`);
-}
+     const igAccountId = await getIgAccountIdForPage(pageId, pageAccessToken);
+
+     const row = {
+       business_name: pageName || "Connected Client",
+       channel: "messenger",              // Messenger via Page; IG inferred via ig_account_id
+       meta_user_id: meJson?.id || null,
+       page_id: pageId,
+       page_name: pageName || null,
+       page_access_token: pageAccessToken || null,
+       ig_account_id: igAccountId,
+       connected_at: new Date().toISOString(),
+       status: "active",
+     };
+
+     const result = await upsertClientRow({ supabase, row });
+     console.log("✅ Supabase saved:", { pageId, pageName, igAccountId, ...result });
+   }
+
+   return res.send(`
+     <div style="font-family: system-ui; text-align:center; margin-top:80px;">
+       <h2>✅ Connected</h2>
+       <p>Saved ${pages.length} page(s) to Supabase.</p>
+       <p>You can close this tab.</p>
+     </div>
+   `);
+ } catch (err) {
+   console.error("Auth handler error:", err);
+   return res.status(500).send(`Auth error: ${err.message}`);
+ }
 });
 
 
