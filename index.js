@@ -400,9 +400,8 @@ app.post("/webhook", async (req, res) => {
          for (const msg of msgs) {
            if (msg.type !== "text") continue;
 
-           // You can keep WA prompt fixed (Cream), or later route WA via Supabase if you want.
-           const reply = await callOpenAI(msg.text.body, "You are Cream Bot on WhatsApp.");
-           await sendWhatsAppText(msg.from, reply);
+           const reply = await callOpenAI(msg.text.body, CREAM_PROMPT);
+      await sendWhatsAppText(msg.from, reply);
          }
        }
      }
