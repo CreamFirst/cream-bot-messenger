@@ -38,6 +38,10 @@ const PROMPT_CACHE_TTL_MS = Number(process.env.PROMPT_CACHE_TTL_MS || String(10 
 // Handoff
 const HANDOFF_MINUTES = Number(process.env.HANDOFF_MINUTES || "60");
 
+// WhatsApp (legacy lane: env-only)
+const WHATSAPP_ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
+const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
+
 
 // OAuth
 const FB_APP_ID = process.env.FB_APP_ID;
