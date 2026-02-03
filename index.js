@@ -1,6 +1,21 @@
 import express from "express";
 import fetch from "node-fetch";
 import { createClient } from "@supabase/supabase-js";
+import fs from "fs";
+import path from "path";
+
+function loadPrompt(filename, fallback) {
+ try {
+   return fs.readFileSync(path.join(process.cwd(), filename), "utf8");
+ } catch {
+   return fallback;
+ }
+}
+
+const WHATSAPP_PROMPT = loadPrompt(
+ "prompt.md",
+ "You are Cream Bot."
+);
 
 const app = express();
 app.use(express.static("public"));
@@ -23,14 +38,6 @@ const PROMPT_CACHE_TTL_MS = Number(process.env.PROMPT_CACHE_TTL_MS || String(10 
 // Handoff
 const HANDOFF_MINUTES = Number(process.env.HANDOFF_MINUTES || "60");
 
-// WhatsApp (legacy lane: env-only)
-const WHATSAPP_ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
-const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
-
-// WhatsApp prompt (legacy: fixed prompt, NOT Supabase/GitHub)
-const WHATSAPP_SYSTEM_PROMPT =
- process.env.WHATSAPP_SYSTEM_PROMPT ||
- "You are Cream Bot on WhatsApp. Be concise, helpful, and friendly. If unsure, ask a short follow-up question.";
 
 // OAuth
 const FB_APP_ID = process.env.FB_APP_ID;
@@ -417,7 +424,7 @@ app.post("/webhook", async (req, res) => {
 
            if (msg.type !== "text") continue;
 
-           const reply = await callOpenAI(msg.text.body, WHATSAPP_SYSTEM_PROMPT);
+           const reply = await callOpenAI(msg.text.body, WHATSAPP_PROMPT);
            await sendWhatsAppText(msg.from, reply);
          }
        }
