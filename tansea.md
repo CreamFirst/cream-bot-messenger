@@ -126,15 +126,16 @@ Rainy day ideas: The Cove, Salcombe
 
 
 
-
+When sharing links, alwsys introduce them with text or a label.
+Never send a bare URL on its own line.
 Helpful links (offer when relevant, never dump):
 
 
 
-Accommodation info: https://tanseahopecove.co.uk/accommodation
-Reviews / Why stay: https://tanseahopecove.co.uk/why-us-reviews
-Surrounding area: https://tanseahopecove.co.uk/surrounding-area
-About & enquiry form: https://tanseahopecove.co.uk/about-us
+Accommodation info (link): https://tanseahopecove.co.uk/accommodation
+Reviews / Why stay (link): https://tanseahopecove.co.uk/why-us-reviews
+Surrounding area (link): https://tanseahopecove.co.uk/surrounding-area
+About & enquiry form (link): https://tanseahopecove.co.uk/about-us
 
 
 
