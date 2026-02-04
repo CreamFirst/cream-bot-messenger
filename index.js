@@ -3,6 +3,7 @@ import fetch from "node-fetch";
 import { createClient } from "@supabase/supabase-js";
 import fs from "fs";
 import path from "path";
+import { Resend } from "resend";
 
 function loadPrompt(filename, fallback) {
  try {
@@ -20,6 +21,8 @@ const WHATSAPP_PROMPT = loadPrompt(
 const app = express();
 app.use(express.static("public"));
 app.use(express.json());
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 /* =========================
  ENV + SUPABASE
@@ -303,6 +306,24 @@ app.get("/auth", async (req, res) => {
      });
    }
 
+  // 🔔 Admin ping – new client connected
+if (process.env.ADMIN_EMAIL) {
+ try {
+   await resend.emails.send({
+     from: "Cream Bot <onboarding@resend.dev>",
+     to: process.env.ADMIN_EMAIL,
+     subject: "New client connected",
+     html: `
+       <p><strong>${pageName || "Unknown page"}</strong> has connected.</p>
+       <p>Page ID: ${pageId}</p>
+       <p>Saved to Supabase.</p>
+     `,
+   });
+ } catch (emailErr) {
+   console.error("Email notify failed:", emailErr);
+ }
+}
+  
    return res.send(`
      <div style="font-family: system-ui; text-align:center; margin-top:80px;">
        <h2>✅ Connected</h2>
