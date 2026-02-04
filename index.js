@@ -386,16 +386,16 @@ app.post("/webhook", async (req, res) => {
            continue;
          }
 
-         if (isPaused("msg", String(pageId), String(userId))) continue;
-
          const text = event.message?.text?.trim();
          if (!text) continue;
-
+        
          if (/^reset$/i.test(text)) {
            resumeConversation("msg", String(pageId), String(userId));
            await sendMessengerText(token, userId, "Reset ✅ How can I help?");
            continue;
          }
+        
+         if (isPaused("msg", String(pageId), String(userId))) continue;
 
          if (!promptText) {
            await sendMessengerText(token, userId, DOWN_MESSAGE);
@@ -490,9 +490,8 @@ app.post("/webhook", async (req, res) => {
            continue;
          }
 
-         if (isPaused("ig", String(igAccountId), String(userId))) continue;
 
-         const text = event.message?.text?.trim();
+        const text = event.message?.text?.trim();
          const hasAttachments =
            Array.isArray(event.message?.attachments) &&
            event.message.attachments.length > 0;
@@ -503,6 +502,8 @@ app.post("/webhook", async (req, res) => {
            continue;
          }
 
+         if (isPaused("ig", String(igAccountId), String(userId))) continue;
+        
          if (!text && hasAttachments) {
            await sendInstagramText(token, userId, "Nice one 😃 Thanks for the tag!");
            continue;
