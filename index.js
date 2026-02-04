@@ -94,6 +94,10 @@ function isPaused(channel, accountId, userId) {
  return true;
 }
 
+function resumeConversation(channel, accountId, userId) {
+ pausedUntil.delete(pauseKey(channel, accountId, userId));
+}
+
 /* =========================
  PROMPT LOADER (GitHub)
  - NO "helpful assistant" fallback masking errors
@@ -388,6 +392,7 @@ app.post("/webhook", async (req, res) => {
          if (!text) continue;
 
          if (/^reset$/i.test(text)) {
+           resumeConversation("msg", String(pageId), String(userId));
            await sendMessengerText(token, userId, "Reset ✅ How can I help?");
            continue;
          }
@@ -493,6 +498,7 @@ app.post("/webhook", async (req, res) => {
            event.message.attachments.length > 0;
 
          if (/^reset$/i.test(text || "")) {
+           resumeConversation("ig", String(igAccountId), String(userId));
            await sendInstagramText(token, userId, "Reset ✅ How can I help?");
            continue;
          }
