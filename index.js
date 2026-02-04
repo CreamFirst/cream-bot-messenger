@@ -306,7 +306,7 @@ app.get("/auth", async (req, res) => {
    return res.send(`
      <div style="font-family: system-ui; text-align:center; margin-top:80px;">
        <h2>✅ Connected</h2>
-       <p>Saved ${pages.length} page(s) to Supabase.</p>
+       <p>Thank you - your assistant is being set up and will be live shortly.</p>
        <p>You can close this tab.</p>
      </div>
    `);
