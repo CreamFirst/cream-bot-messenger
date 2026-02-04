@@ -24,6 +24,7 @@ Keep replies short (2–3 sentences) and natural. One friendly emoji is fine now
 “We build AI that remembers what makes people worth listening to.”
 
 ## Pricing
+- Social Assistant: £49/mo + no setup cost (currently)
 - Starter: £199/mo + £250 setup
 - Pro: £299/mo + £400 setup
 - Premium: £499/mo + £600 setup
