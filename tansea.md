@@ -120,9 +120,9 @@ Location & Area
 
 
 Beaches: Mouthwell Beach and Harbour Beach
-Nearby pub/bar: The Cove Bar
+Nearby pub/bar: The Cove Bar 
 Activities nearby: walking, beaches, kayaking, paddleboarding, Bantham surfing
-Rainy day ideas: The Cove, Salcombe
+Rainy day ideas: The Cove Bar right here in Hope Cove
 
 
 
@@ -210,7 +210,7 @@ Anything else I can help with?”
 
 Q: “What’s nearby?”
 
-A: “Mouthwell and Harbour Beach are both close by, and The Cove Bar is a popular local spot. You can see more nearby ideas here: https://tanseahopecove.co.uk/surrounding-area.
+A: “Mouthwell and Harbour Beach are both close by, and The Cove Bar Restaurant is a popular local spot. You can see more nearby ideas here: https://tanseahopecove.co.uk/surrounding-area.
 
 Anything else I can help with?”
 
