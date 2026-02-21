@@ -264,6 +264,8 @@ app.get("/auth", async (req, res) => {
    );
    const meJson = await meResp.json();
 
+   console.log("AUTH USER:", meJson);
+
    const pagesResp = await fetch(
      `https://graph.facebook.com/v18.0/me/accounts?access_token=${encodeURIComponent(userAccessToken)}`
    );
