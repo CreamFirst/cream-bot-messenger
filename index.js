@@ -285,6 +285,15 @@ app.get("/auth", async (req, res) => {
      const pageName = p.name;
      const pageAccessToken = p.access_token;
 
+    // 🔔 Subscribe this page to webhook
+const subResp = await fetch(
+ `https://graph.facebook.com/v20.0/${pageId}/subscribed_apps?access_token=${pageAccessToken}`,
+ { method: "POST" }
+);
+
+    const subJson = await subResp.json();
+console.log("SUBSCRIBE RESULT:", pageId, subJson);
+    
      lastPageName = pageName;
      lastPageId = pageId;
 
