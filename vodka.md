@@ -55,7 +55,7 @@ Family-run, Devon-based brand
 CURRENT PROMOTIONS / EVENTS (HIGH PRIORITY)
 
 Current live event:
-Saturday 14th Feb – Cocktail Night
+Saturday 28th Feb – Cocktail Night
 7–10pm at the Tasting Room
 Booking recommended.
 
