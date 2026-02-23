@@ -287,12 +287,15 @@ app.get("/auth", async (req, res) => {
 
     // 🔔 Subscribe this page to webhook
 const subResp = await fetch(
- `https://graph.facebook.com/v20.0/${pageId}/subscribed_apps?access_token=${pageAccessToken}`,
+ `https://graph.facebook.com/v20.0/${pageId}/subscribed_apps` +
+ `?subscribed_fields=messages,messaging_postbacks,message_deliveries` +
+ `&access_token=${encodeURIComponent(pageAccessToken)}`,
  { method: "POST" }
 );
 
-    const subJson = await subResp.json();
+const subJson = await subResp.json();
 console.log("SUBSCRIBE RESULT:", pageId, subJson);
+
     
      lastPageName = pageName;
      lastPageId = pageId;
