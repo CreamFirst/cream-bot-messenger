@@ -277,10 +277,16 @@ app.get("/auth", async (req, res) => {
      return res.status(500).send("No pages returned from /me/accounts");
    }
 
+   let lastPageName = null;
+   let lastPageId = null;
+  
    for (const p of pages) {
      const pageId = p.id;
      const pageName = p.name;
      const pageAccessToken = p.access_token;
+
+     lastPageName = pageName;
+     lastPageId = pageId;
 
      const igAccountId = await getIgAccountIdForPage(pageId, pageAccessToken);
 
@@ -316,8 +322,8 @@ if (process.env.ADMIN_EMAIL) {
      to: process.env.ADMIN_EMAIL,
      subject: "New client connected",
      html: `
-       <p><strong>${pageName || "Unknown page"}</strong> has connected.</p>
-       <p>Page ID: ${pageId}</p>
+       <p><strong>${lastPageName || "Unknown page"}</strong> has connected.</p>
+       <p>Page ID: ${lastPageId}</p>
        <p>Saved to Supabase.</p>
      `,
    });
