@@ -108,9 +108,8 @@ CURRENT PROMOTIONS / EVENTS (HIGH PRIORITY)
 
 
 
-Current live event:
-
-Saturday 28th Feb – Cocktail Night 7–10pm at the Tasting Room. Booking recommended.
+We regularly host Cocktail Nights at The Tasting Room.
+Our next event is coming up in March -  details will be announced shortly on our FB and Insta pages 😃 
 
 
 
