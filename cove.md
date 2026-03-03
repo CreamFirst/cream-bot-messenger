@@ -55,6 +55,9 @@ If something’s unclear, use once only:
 
 CURRENT PROMOTIONS (HIGH PRIORITY)
 
+Free Kids Meal on Thursday, March 5 for every adult main purchased.
+That's restaurant or bar between 4pm and 7pm - celebrate World Book Day on us. 
+
 £4 pints during Six Nations Rugby matches
 
 If someone asks about:
