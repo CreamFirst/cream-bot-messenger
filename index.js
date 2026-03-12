@@ -490,9 +490,16 @@ if (client.availability_enabled) {
      const data = await r.json();
 
      if (data?.message) {
-       await sendMessengerText(token, userId, data.message);
-       continue;
-     }
+ await sendMessengerText(token, userId, data.message);
+
+ await sendMessengerText(
+   token,
+   userId,
+   "👉 Check our live availability calendar & prices here: https://https://tanseahopecove.co.uk/availability-prices/"
+ );
+
+ continue;
+}
    } catch (err) {
      console.error("AVAILABILITY_CHECK_FAILED", err?.message || err);
    }
@@ -615,6 +622,47 @@ if (client.availability_enabled) {
            continue;
          }
 
+// --- availability branch (Instagram) ---
+if (client.availability_enabled) {
+ const msg = text.toLowerCase();
+
+ const availabilityWords = [
+   "available","availability","free","dates","week","weekend",
+   "july","august","september","october","november","december",
+   "january","february","march","april","may","june",
+   "spring","summer","autumn","fall","winter"
+ ];
+
+ const isAvailabilityQuery = availabilityWords.some(word => msg.includes(word));
+
+ if (isAvailabilityQuery) {
+   try {
+     const r = await fetch("https://tansea-availability.onrender.com/check", {
+       method: "POST",
+       headers: { "Content-Type": "application/json" },
+       body: JSON.stringify({ query: text })
+     });
+
+     const data = await r.json();
+
+     if (data?.message) {
+       await sendInstagramText(token, userId, data.message);
+
+       await sendInstagramText(
+         token,
+         userId,
+         "👉 Check our live availability calendar & prices here: https://https://tanseahopecove.co.uk/availability-prices/"
+       );
+
+       continue;
+     }
+   } catch (err) {
+     console.error("IG_AVAILABILITY_CHECK_FAILED", err?.message || err);
+   }
+ }
+}
+// --- end availability branch ---
+        
          const reply = await callOpenAI(text, promptText);
          await sendInstagramText(token, userId, reply);
        }
