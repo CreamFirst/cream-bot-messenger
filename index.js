@@ -445,6 +445,62 @@ app.post("/webhook", async (req, res) => {
            continue;
          }
 
+// --- availability branch (Tansea only for now) ---
+if (client.availability_enabled) {
+ const msg = text.toLowerCase();
+
+ const availabilityWords = [
+   "available",
+   "availability",
+   "free",
+   "dates",
+   "week",
+   "weekend",
+   "july",
+   "august",
+   "september",
+   "october",
+   "november",
+   "december",
+   "january",
+   "february",
+   "march",
+   "april",
+   "may",
+   "june",
+   "spring",
+   "summer",
+   "autumn",
+   "fall",
+   "winter"
+ ];
+
+ const isAvailabilityQuery = availabilityWords.some(word => msg.includes(word));
+
+ if (isAvailabilityQuery) {
+   try {
+     const r = await fetch("https://tansea-availability.onrender.com/check", {
+       method: "POST",
+       headers: {
+         "Content-Type": "application/json"
+       },
+       body: JSON.stringify({ query: text })
+     });
+
+     const data = await r.json();
+
+     if (data?.message) {
+       await sendMessengerText(token, userId, data.message);
+       continue;
+     }
+   } catch (err) {
+     console.error("AVAILABILITY_CHECK_FAILED", err?.message || err);
+   }
+ }
+}
+// --- end availability branch ---
+
+        
          const reply = await callOpenAI(text, promptText);
          await sendMessengerText(token, userId, reply);
        }
