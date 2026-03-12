@@ -495,7 +495,7 @@ if (client.availability_enabled) {
  await sendMessengerText(
    token,
    userId,
-   "👉 Check our live availability calendar & prices here: https://https://tanseahopecove.co.uk/availability-prices/"
+   "👉 Check our live availability calendar & prices here: https://tanseahopecove.co.uk/availability-prices/"
  );
 
  continue;
@@ -651,7 +651,7 @@ if (client.availability_enabled) {
        await sendInstagramText(
          token,
          userId,
-         "👉 Check our live availability calendar & prices here: https://https://tanseahopecove.co.uk/availability-prices/"
+         "👉 Check our live availability calendar & prices here: https://tanseahopecove.co.uk/availability-prices/"
        );
 
        continue;
