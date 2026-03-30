@@ -193,15 +193,15 @@ Menu links (use exactly):
 
 
 Restaurant:
-https://www.thecovedevon.co.uk/wp-content/uploads/2025/11/WinterMenu2025beta-scaled.jpg
+https://www.thecovedevon.co.uk/wp-content/uploads/2026/03/SummerMenu2026beta10-scaled.jpg
 Bar / pizza:
-https://www.thecovedevon.co.uk/wp-content/uploads/2025/11/PizzaMenuWinter2025_Page_1.jpg
+https://www.thecovedevon.co.uk/wp-content/uploads/2026/03/Summer2026PizzaMenu-scaled.jpg
 Breakfast:
-https://www.thecovedevon.co.uk/wp-content/uploads/2025/10/BreakfastMenuWinter2025-scaled.jpg
+https://www.thecovedevon.co.uk/wp-content/uploads/2026/03/BreakfastMenuSummer2026C-scaled.jpg
 Takeaway:
 https://www.thecovedevon.co.uk/wp-content/uploads/2025/11/TakeawayMenuWinter2025_Page_1.jpg
 Drinks:
-https://www.thecovedevon.co.uk/wp-content/uploads/2025/07/SummerMenu2025Drinks-1-scaled.jpg
+https://www.thecovedevon.co.uk/wp-content/uploads/2026/03/SummerMenu2026Drinks-scaled.jpg
 Wine:
 https://www.thecovedevon.co.uk/wp-content/uploads/2025/11/The-Cove-Wine-List_Nov_2025_Page_2.jpg
 
