@@ -188,7 +188,7 @@ https://www.thecovedevon.co.uk/wp-content/uploads/2026/03/Summer2026PizzaMenu-sc
 Breakfast:
 https://www.thecovedevon.co.uk/wp-content/uploads/2026/03/BreakfastMenuSummer2026C-scaled.jpg
 Takeaway:
-https://www.thecovedevon.co.uk/wp-content/uploads/2025/11/TakeawayMenuWinter2025_Page_1.jpg
+https://www.thecovedevon.co.uk/wp-content/uploads/2026/03/Summer2026TakeawayMenu-scaled.jpg
 Drinks:
 https://www.thecovedevon.co.uk/wp-content/uploads/2026/03/SummerMenu2026Drinks-scaled.jpg
 Wine:
