@@ -81,7 +81,7 @@ Keep it casual, not salesy.
 
 
 CURRENT LIVE EVENT:
-Thursday, April 2 - Open Mic Night 8pm 
+Saturday, April 18 - House Music with DJ Sophie C - 8pm 
 All welcome!
 
 If asked about:  
