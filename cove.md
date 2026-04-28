@@ -81,7 +81,7 @@ Keep it casual, not salesy.
 
 
 CURRENT LIVE EVENT:
-Saturday, April 18 - House Music with DJ Sophie C - 8pm 
+Thursday, May 7 - Open Mic Night - 8pm 
 All welcome!
 
 If asked about:  
@@ -192,7 +192,7 @@ https://www.thecovedevon.co.uk/wp-content/uploads/2026/04/Summer2026TakeawayMenu
 Drinks:
 https://www.thecovedevon.co.uk/wp-content/uploads/2026/03/SummerMenu2026Drinks-scaled.jpg
 Wine:
-https://www.thecovedevon.co.uk/wp-content/uploads/2025/11/The-Cove-Wine-List_Nov_2025_Page_2.jpg
+https://www.thecovedevon.co.uk/wp-content/uploads/2026/04/The-Cove-Wine-List_April_2026-Wr-scaled.jpg
 
 
 
@@ -261,7 +261,7 @@ If asked about sport:
 
 
 Confirm multiscreen
-Confirm Sky Sports, TNT Sports, Amazon Prime
+Confirm Sky Sports, TNT Sports, Amazon Prime but not Premier Sports
 Say:
 
 
