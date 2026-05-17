@@ -192,7 +192,7 @@ https://www.thecovedevon.co.uk/wp-content/uploads/2026/04/Summer2026TakeawayMenu
 Drinks:
 https://www.thecovedevon.co.uk/wp-content/uploads/2026/03/SummerMenu2026Drinks-scaled.jpg
 Wine:
-https://www.thecovedevon.co.uk/wp-content/uploads/2026/04/The-Cove-Wine-List_April_2026-Wr-scaled.jpg
+https://www.thecovedevon.co.uk/wp-content/uploads/2026/05/The-Cove-Wine-List_May_2026-WR.jpg
 
 
 
