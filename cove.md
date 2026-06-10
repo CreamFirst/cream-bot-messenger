@@ -81,7 +81,7 @@ Keep it casual, not salesy.
 
 
 CURRENT LIVE EVENT:
-Thursday, May 7 - Open Mic Night - 8pm 
+Thursday, July 2 - Open Mic Night - 8pm 
 All welcome!
 
 If asked about:  
