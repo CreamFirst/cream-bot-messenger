@@ -81,7 +81,7 @@ Keep it casual, not salesy.
 
 
 CURRENT LIVE EVENT:
-Thursday, July 2 - Open Mic Night - 8pm 
+Thursday, Sep 3 - Open Mic Night - 8pm 
 All welcome!
 
 If asked about:  
@@ -182,15 +182,15 @@ Menu links (use exactly):
 
 
 Restaurant:
-https://www.thecovedevon.co.uk/wp-content/uploads/2026/05/SummerMenuJune2026-scaled.jpg
+https://www.thecovedevon.co.uk/wp-content/uploads/2026/07/SummerMenuJuly2026-scaled.jpg
 Bar / pizza:
-https://www.thecovedevon.co.uk/wp-content/uploads/2026/05/PizzaMenu2026June-scaled.jpg
+https://www.thecovedevon.co.uk/wp-content/uploads/2026/07/PizzaMenuAug2026_Page_1-scaled.jpg
 Breakfast:
-https://www.thecovedevon.co.uk/wp-content/uploads/2026/03/BreakfastMenuSummer2026C-scaled.jpg
+https://www.thecovedevon.co.uk/wp-content/uploads/2026/07/BreakfastMenuJuly2026B-scaled.jpg
 Takeaway:
-https://www.thecovedevon.co.uk/wp-content/uploads/2026/05/TakeawayMenu2026-scaled.jpg
+https://www.thecovedevon.co.uk/wp-content/uploads/2026/07/TakeAwayMenuAug2026_Page_1-scaled.jpg
 Drinks:
-https://www.thecovedevon.co.uk/wp-content/uploads/2026/05/SummerMenu2026DrinksMay-scaled.jpg
+https://www.thecovedevon.co.uk/wp-content/uploads/2026/07/SummerMenu2026DrinksJuly-scaled.jpg
 Wine:
 https://www.thecovedevon.co.uk/wp-content/uploads/2026/05/The-Cove-Wine-List_May_2026-WR.jpg
 
